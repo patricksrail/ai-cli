@@ -1,6 +1,6 @@
 import { generateImage, generateText, gateway, type JSONValue } from "ai";
-import type { Command } from "commander";
 
+import type { Command } from "../lib/command.js";
 import {
   collectImageReference,
   loadImageReferences,

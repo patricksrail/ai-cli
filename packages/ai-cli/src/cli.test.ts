@@ -25,6 +25,7 @@ describe("cli integration", () => {
     expect(pkg.bin.ai).toBe("./dist/index.js");
     expect(pkg.files).toContain("dist");
     expect(pkg.files).not.toContain("src");
+    expect(pkg.dependencies).not.toHaveProperty("commander");
   });
 
   test("--help exits 0 and lists subcommands", async () => {
@@ -39,6 +40,18 @@ describe("cli integration", () => {
     const { exitCode, stdout } = await run("--version");
     expect(exitCode).toBe(0);
     expect(stdout.trim()).toMatch(/^\d+\.\d+\.\d+/);
+  });
+
+  test("unknown options fail before running a command", async () => {
+    const { exitCode, stderr } = await run("text", "--wat", "hello");
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain("unknown option '--wat'");
+  });
+
+  test("missing option values produce a usage error", async () => {
+    const { exitCode, stderr } = await run("text", "--model");
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain("argument missing");
   });
 
   test("text with no prompt and no stdin exits 1", async () => {
