@@ -48,6 +48,17 @@ describe("cli integration", () => {
     expect(stdout.trim()).toBe(pkg.version);
   });
 
+  test("--version remains global when a nested option expects a value", async () => {
+    const { exitCode, stdout } = await run(
+      "audio",
+      "speak",
+      "--voice",
+      "--version"
+    );
+    expect(exitCode).toBe(0);
+    expect(stdout.trim()).toBe(pkg.version);
+  });
+
   test("help command displays subcommand help", async () => {
     const { exitCode, stdout } = await run("help", "text");
     expect(exitCode).toBe(0);
@@ -62,10 +73,37 @@ describe("cli integration", () => {
     expect(stdout).toContain("--voice");
   });
 
+  test("help options work on implicit help commands", async () => {
+    const root = await run("help", "--help");
+    expect(root.exitCode).toBe(0);
+    expect(root.stdout).toContain("Usage: ai [options] [command]");
+
+    const nested = await run("audio", "help", "--help");
+    expect(nested.exitCode).toBe(0);
+    expect(nested.stdout).toContain("Usage: ai audio [options] [command]");
+  });
+
+  test("help takes precedence over an unknown command", async () => {
+    const { exitCode, stdout, stderr } = await run("wat", "--help");
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("Usage: ai [options] [command]");
+    expect(stderr).toBe("");
+  });
+
   test("unknown options fail before running a command", async () => {
     const { exitCode, stderr } = await run("text", "--wat", "hello");
     expect(exitCode).toBe(1);
     expect(stderr).toContain("unknown option '--wat'");
+  });
+
+  test("unknown commands and options include typo suggestions", async () => {
+    const command = await run("texte");
+    expect(command.exitCode).toBe(1);
+    expect(command.stderr).toContain("(Did you mean text?)");
+
+    const option = await run("text", "--modle", "openai/gpt-5.5");
+    expect(option.exitCode).toBe(1);
+    expect(option.stderr).toContain("(Did you mean --model?)");
   });
 
   test("missing option values produce a usage error", async () => {
@@ -86,7 +124,16 @@ describe("cli integration", () => {
     expect(stdout).toContain("--model");
     expect(stdout).toContain("--format");
     expect(stdout).toContain("--image");
+    expect(stdout).toContain("(default: [])");
     expect(stdout).toContain("--temperature");
+    expect(
+      Math.max(
+        ...stdout
+          .trimEnd()
+          .split("\n")
+          .map((line) => line.length)
+      )
+    ).toBeLessThanOrEqual(80);
   });
 
   test("image --help exits 0 and lists flags", async () => {
@@ -111,6 +158,16 @@ describe("cli integration", () => {
     expect(exitCode).toBe(0);
     expect(stdout).toContain("speak");
     expect(stdout).toContain("transcribe");
+  });
+
+  test("root help keeps nested command signatures compatible", async () => {
+    const { stdout } = await run("--help");
+    const audio = stdout
+      .split("\n")
+      .find((line) => line.trimStart().startsWith("audio"));
+    expect(audio).toBeDefined();
+    expect(audio).not.toContain("[options]");
+    expect(audio).not.toContain("[command]");
   });
 
   test("audio speak --help exits 0 and lists flags", async () => {
