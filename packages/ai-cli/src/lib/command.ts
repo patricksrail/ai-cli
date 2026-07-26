@@ -149,12 +149,12 @@ export class Command {
       return;
     }
 
-    if (hasFlagBeforeTerminator(args, ["-h", "--help"])) {
-      this.writeHelp(process.stdout);
-      return;
-    }
     if (first === "help") {
       this.writeHelpCommand(args.slice(1));
+      return;
+    }
+    if (hasFlagBeforeTerminator(args, ["-h", "--help"])) {
+      this.writeHelp(process.stdout);
       return;
     }
     if (first.startsWith("-")) {
@@ -258,28 +258,65 @@ export class Command {
   }
 
   private hasHelpFlag(args: string[]): boolean {
+    let hasHelp = false;
+
     for (let index = 0; index < args.length; index++) {
       const token = args[index]!;
 
-      if (token === "--") return false;
-      if (token === "-h" || token === "--help") return true;
+      if (token === "--") return hasHelp;
+      if (
+        token === "-h" ||
+        token === "--help" ||
+        this.isCombinedHelpOption(token)
+      ) {
+        hasHelp = true;
+        continue;
+      }
       if (!token.startsWith("-") || token === "-" || isNegativeNumber(token)) {
         continue;
       }
 
+      let matches: ReturnType<Command["findOptions"]>;
       try {
-        const matches = this.findOptions(token);
-        if (
-          matches.some(
-            ({ option, inlineValue }) =>
-              option.valueName && inlineValue === undefined
-          )
-        ) {
-          index++;
-        }
+        matches = this.findOptions(token);
       } catch (error) {
         if (!(error instanceof CliUsageError)) throw error;
+        continue;
       }
+
+      const optionWithoutValue = matches.find(
+        ({ option, inlineValue }) =>
+          option.valueName &&
+          inlineValue === undefined &&
+          args[index + 1] === undefined
+      );
+      if (optionWithoutValue) {
+        throw new CliUsageError(
+          `option '${optionWithoutValue.option.flags}' argument missing`
+        );
+      }
+      if (
+        matches.some(
+          ({ option, inlineValue }) =>
+            option.valueName && inlineValue === undefined
+        )
+      ) {
+        index++;
+      }
+    }
+
+    return hasHelp;
+  }
+
+  private isCombinedHelpOption(token: string): boolean {
+    if (!token.startsWith("-") || token.startsWith("--")) return false;
+
+    for (let index = 1; index < token.length; index++) {
+      const flag = `-${token[index]}`;
+      if (flag === "-h") return index === token.length - 1;
+
+      const option = this.options.find((candidate) => candidate.short === flag);
+      if (!option || option.valueName) return false;
     }
 
     return false;
@@ -397,8 +434,8 @@ export class Command {
   }
 
   private writeHelpCommand(path: string[]): void {
-    const [name, ...remaining] = path;
-    if (!name) {
+    const [name] = path;
+    if (!name || name === "-h" || name === "--help") {
       this.writeHelp(process.stdout);
       return;
     }
@@ -407,7 +444,7 @@ export class Command {
       (candidate) => candidate.commandName === name
     );
     if (!command) throw new CliUsageError(`unknown command '${name}'`);
-    command.writeHelpCommand(remaining);
+    command.writeHelp(process.stdout);
   }
 
   private findVersion(): string | undefined {

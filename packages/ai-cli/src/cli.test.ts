@@ -83,6 +83,16 @@ describe("cli integration", () => {
     expect(nested.stdout).toContain("Usage: ai audio [options] [command]");
   });
 
+  test("help options preserve implicit help command targets", async () => {
+    const root = await run("help", "text", "--help");
+    expect(root.exitCode).toBe(0);
+    expect(root.stdout).toContain("Usage: ai text [options] [prompt]");
+
+    const nested = await run("audio", "help", "speak", "--help");
+    expect(nested.exitCode).toBe(0);
+    expect(nested.stdout).toContain("Usage: ai audio speak [options] [text]");
+  });
+
   test("help takes precedence over an unknown command", async () => {
     const { exitCode, stdout, stderr } = await run("wat", "--help");
     expect(exitCode).toBe(0);
@@ -112,6 +122,13 @@ describe("cli integration", () => {
     expect(stderr).toContain("argument missing");
   });
 
+  test("missing option values take precedence over help", async () => {
+    const { exitCode, stdout, stderr } = await run("text", "hello", "-h", "-m");
+    expect(exitCode).toBe(1);
+    expect(stdout).toBe("");
+    expect(stderr).toContain("option '-m, --model <model>' argument missing");
+  });
+
   test("text with no prompt and no stdin exits 1", async () => {
     const { exitCode, stderr } = await run("text");
     expect(exitCode).toBe(1);
@@ -134,6 +151,13 @@ describe("cli integration", () => {
           .map((line) => line.length)
       )
     ).toBeLessThanOrEqual(80);
+  });
+
+  test("text grouped short options support the help flag", async () => {
+    const { exitCode, stdout, stderr } = await run("text", "-qh");
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("Usage: ai text [options] [prompt]");
+    expect(stderr).toBe("");
   });
 
   test("image --help exits 0 and lists flags", async () => {
