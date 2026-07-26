@@ -5,9 +5,9 @@ import { fileURLToPath } from "url";
 
 import { gateway } from "@ai-sdk/gateway";
 import { generateSpeech, transcribe } from "ai";
-import type { Command } from "commander";
 
 import { previewAudioOutputs } from "../lib/audio-preview.js";
+import type { Command } from "../lib/command.js";
 import { buildJobs, runJobs } from "../lib/jobs.js";
 import { fetchGatewayModels, resolveModels } from "../lib/models.js";
 import type { OutputFormat } from "../lib/output.js";
