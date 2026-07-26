@@ -86,4 +86,45 @@ describe("Command", () => {
       options: { quiet: true, output: "result.md" },
     });
   });
+
+  test("parses combined boolean and value-taking short options", async () => {
+    let received: unknown;
+    const program = new Command().name("ai");
+    program
+      .command("text")
+      .argument("[prompt]", "Prompt")
+      .option("-q, --quiet", "Quiet")
+      .option("-m, --model <model>", "Model")
+      .action((prompt, options) => {
+        received = { prompt, options };
+      });
+
+    await program.parseAsync([
+      "node",
+      "ai",
+      "text",
+      "-qmopenai/gpt-5.5",
+      "hello",
+    ]);
+
+    expect(received).toEqual({
+      prompt: "hello",
+      options: { quiet: true, model: "openai/gpt-5.5" },
+    });
+  });
+
+  test("treats negative numbers as positional arguments", async () => {
+    let received: unknown;
+    const program = new Command().name("ai");
+    program
+      .command("text")
+      .argument("[prompt]", "Prompt")
+      .action((prompt) => {
+        received = prompt;
+      });
+
+    await program.parseAsync(["node", "ai", "text", "-1.5e-2"]);
+
+    expect(received).toBe("-1.5e-2");
+  });
 });

@@ -42,6 +42,26 @@ describe("cli integration", () => {
     expect(stdout.trim()).toMatch(/^\d+\.\d+\.\d+/);
   });
 
+  test("--version works after a nested subcommand", async () => {
+    const { exitCode, stdout } = await run("audio", "speak", "--version");
+    expect(exitCode).toBe(0);
+    expect(stdout.trim()).toBe(pkg.version);
+  });
+
+  test("help command displays subcommand help", async () => {
+    const { exitCode, stdout } = await run("help", "text");
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("Usage: ai text");
+    expect(stdout).toContain("--model");
+  });
+
+  test("nested help command displays nested subcommand help", async () => {
+    const { exitCode, stdout } = await run("audio", "help", "speak");
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("Usage: ai audio speak");
+    expect(stdout).toContain("--voice");
+  });
+
   test("unknown options fail before running a command", async () => {
     const { exitCode, stderr } = await run("text", "--wat", "hello");
     expect(exitCode).toBe(1);

@@ -135,13 +135,18 @@ export class Command {
       this.writeHelp(process.stdout);
       return;
     }
-    if (this.commandVersion && (first === "-V" || first === "--version")) {
-      process.stdout.write(`${this.commandVersion}\n`);
+    const version = this.findVersion();
+    if (version && (first === "-V" || first === "--version")) {
+      process.stdout.write(`${version}\n`);
       return;
     }
     if (!first) {
       this.writeHelp(process.stderr);
       throw new CliUsageError();
+    }
+    if (first === "help") {
+      this.writeHelpCommand(args.slice(1));
+      return;
     }
     if (first.startsWith("-")) {
       throw new CliUsageError(`unknown option '${first}'`);
@@ -176,37 +181,52 @@ export class Command {
         this.writeHelp(process.stdout);
         return;
       }
+      const version = this.findVersion();
+      if (
+        !optionsEnded &&
+        version &&
+        (token === "-V" || token === "--version")
+      ) {
+        process.stdout.write(`${version}\n`);
+        return;
+      }
       if (!optionsEnded && token === "--") {
         optionsEnded = true;
         continue;
       }
-      if (!optionsEnded && token.startsWith("-") && token !== "-") {
-        const { option, inlineValue } = this.findOption(token);
-        if (!option) throw new CliUsageError(`unknown option '${token}'`);
+      if (
+        !optionsEnded &&
+        token.startsWith("-") &&
+        token !== "-" &&
+        !isNegativeNumber(token)
+      ) {
+        const matches = this.findOptions(token);
 
-        if (!option.valueName) {
-          if (inlineValue !== undefined) {
-            throw new CliUsageError(
-              `option '${option.long}' does not take a value`
-            );
+        for (const { option, inlineValue } of matches) {
+          if (!option.valueName) {
+            if (inlineValue !== undefined) {
+              throw new CliUsageError(
+                `option '${option.long}' does not take a value`
+              );
+            }
+            values[option.name] = option.negated ? false : true;
+            continue;
           }
-          values[option.name] = option.negated ? false : true;
-          continue;
-        }
 
-        let value = inlineValue;
-        if (value === undefined) {
-          value = args[++index];
+          let value = inlineValue;
           if (value === undefined) {
-            throw new CliUsageError(
-              `option '${option.flags}' argument missing`
-            );
+            value = args[++index];
+            if (value === undefined) {
+              throw new CliUsageError(
+                `option '${option.flags}' argument missing`
+              );
+            }
           }
-        }
 
-        values[option.name] = option.parser
-          ? option.parser(value, values[option.name])
-          : value;
+          values[option.name] = option.parser
+            ? option.parser(value, values[option.name])
+            : value;
+        }
         continue;
       }
 
@@ -224,30 +244,47 @@ export class Command {
     await this.actionHandler(positionals[0], values);
   }
 
-  private findOption(token: string): {
-    option?: OptionDefinition;
+  private findOptions(token: string): {
+    option: OptionDefinition;
     inlineValue?: string;
-  } {
+  }[] {
     if (token.startsWith("--")) {
       const equals = token.indexOf("=");
       const flag = equals === -1 ? token : token.slice(0, equals);
-      return {
-        option: this.options.find((candidate) => candidate.long === flag),
-        inlineValue: equals === -1 ? undefined : token.slice(equals + 1),
-      };
+      const option = this.options.find((candidate) => candidate.long === flag);
+      if (!option) throw new CliUsageError(`unknown option '${token}'`);
+      return [
+        {
+          option,
+          inlineValue: equals === -1 ? undefined : token.slice(equals + 1),
+        },
+      ];
     }
 
     const exact = this.options.find((candidate) => candidate.short === token);
-    if (exact) return { option: exact };
+    if (exact) return [{ option: exact }];
 
-    const short = token.slice(0, 2);
-    const option = this.options.find(
-      (candidate) => candidate.short === short && candidate.valueName
-    );
-    return {
-      option,
-      inlineValue: option ? token.slice(2) : undefined,
-    };
+    const matches: { option: OptionDefinition; inlineValue?: string }[] = [];
+    let index = 1;
+
+    while (index < token.length) {
+      const flag = `-${token[index]}`;
+      const option = this.options.find((candidate) => candidate.short === flag);
+      if (!option) {
+        throw new CliUsageError(`unknown option '-${token.slice(index)}'`);
+      }
+
+      if (option.valueName) {
+        const inlineValue = token.slice(index + 1) || undefined;
+        matches.push({ option, inlineValue });
+        return matches;
+      }
+
+      matches.push({ option });
+      index++;
+    }
+
+    return matches;
   }
 
   private writeHelp(stream: NodeJS.WritableStream): void {
@@ -287,9 +324,28 @@ export class Command {
         child.helpSignature(),
         child.commandDescription,
       ]);
+      commandRows.push(["help [command]", "display help for command"]);
       stream.write("\nCommands:\n");
       stream.write(formatRows(commandRows));
     }
+  }
+
+  private writeHelpCommand(path: string[]): void {
+    const [name, ...remaining] = path;
+    if (!name) {
+      this.writeHelp(process.stdout);
+      return;
+    }
+
+    const command = this.commands.find(
+      (candidate) => candidate.commandName === name
+    );
+    if (!command) throw new CliUsageError(`unknown command '${name}'`);
+    command.writeHelpCommand(remaining);
+  }
+
+  private findVersion(): string | undefined {
+    return this.commandVersion ?? this.parent?.findVersion();
   }
 
   private commandPath(): string {
@@ -312,6 +368,10 @@ function camelCase(value: string): string {
   return value.replace(/-([a-z])/g, (_, letter: string) =>
     letter.toUpperCase()
   );
+}
+
+function isNegativeNumber(value: string): boolean {
+  return /^-(\d+|\d*\.\d+)(e[+-]?\d+)?$/.test(value);
 }
 
 function formatRows(rows: [string, string][]): string {
