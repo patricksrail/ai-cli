@@ -119,20 +119,27 @@ export class Command {
     await this.run(argv.slice(2));
   }
 
-  private async run(args: string[]): Promise<void> {
+  private async run(args: string[], optionsEnded = false): Promise<void> {
     if (this.commands.length > 0) {
-      await this.runParent(args);
+      await this.runParent(args, optionsEnded);
       return;
     }
 
-    await this.runLeaf(args);
+    await this.runLeaf(args, optionsEnded);
   }
 
-  private async runParent(args: string[]): Promise<void> {
+  private async runParent(
+    args: string[],
+    optionsEnded: boolean
+  ): Promise<void> {
     const first = args[0];
     const version = this.findVersion();
 
-    if (version && hasFlagBeforeTerminator(args, ["-V", "--version"])) {
+    if (
+      !optionsEnded &&
+      version &&
+      hasFlagBeforeTerminator(args, ["-V", "--version"])
+    ) {
       process.stdout.write(`${version}\n`);
       return;
     }
@@ -140,12 +147,16 @@ export class Command {
       this.writeHelp(process.stderr);
       throw new CliUsageError();
     }
+    if (!optionsEnded && first === "--") {
+      await this.runParent(args.slice(1), true);
+      return;
+    }
 
     const command = this.commands.find(
       (candidate) => candidate.commandName === first
     );
     if (command) {
-      await command.run(args.slice(1));
+      await command.run(args.slice(1), optionsEnded);
       return;
     }
 
@@ -153,11 +164,11 @@ export class Command {
       this.writeHelpCommand(args.slice(1));
       return;
     }
-    if (hasFlagBeforeTerminator(args, ["-h", "--help"])) {
+    if (!optionsEnded && hasFlagBeforeTerminator(args, ["-h", "--help"])) {
       this.writeHelp(process.stdout);
       return;
     }
-    if (first.startsWith("-")) {
+    if (!optionsEnded && first.startsWith("-")) {
       throw new CliUsageError(
         `unknown option '${first}'${suggestSimilar(first, this.optionCandidates())}`
       );
@@ -172,8 +183,11 @@ export class Command {
     );
   }
 
-  private async runLeaf(args: string[]): Promise<void> {
-    if (this.hasHelpFlag(args)) {
+  private async runLeaf(
+    args: string[],
+    inheritedOptionsEnded: boolean
+  ): Promise<void> {
+    if (!inheritedOptionsEnded && this.hasHelpFlag(args)) {
       this.writeHelp(process.stdout);
       return;
     }
@@ -189,7 +203,7 @@ export class Command {
         ])
     );
     const positionals: string[] = [];
-    let optionsEnded = false;
+    let optionsEnded = inheritedOptionsEnded;
 
     for (let index = 0; index < args.length; index++) {
       const token = args[index]!;

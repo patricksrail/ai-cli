@@ -127,4 +127,65 @@ describe("Command", () => {
 
     expect(received).toBe("-1.5e-2");
   });
+
+  test("routes root and nested subcommands after option terminators", async () => {
+    async function parse(args: string[]) {
+      let received: unknown;
+      const program = new Command().name("ai");
+      program
+        .command("text")
+        .argument("[prompt]", "Prompt")
+        .action((prompt, options) => {
+          received = { command: "text", prompt, options };
+        });
+      program
+        .command("audio")
+        .command("speak")
+        .argument("[text]", "Text")
+        .action((text, options) => {
+          received = { command: "speak", text, options };
+        });
+
+      await program.parseAsync(["node", "ai", ...args]);
+      return received;
+    }
+
+    expect(await parse(["--", "text", "hello"])).toEqual({
+      command: "text",
+      prompt: "hello",
+      options: {},
+    });
+    expect(await parse(["audio", "--", "speak", "hello"])).toEqual({
+      command: "speak",
+      text: "hello",
+      options: {},
+    });
+  });
+
+  test("keeps descendant arguments positional after a parent terminator", async () => {
+    async function parse(args: string[]) {
+      let received: unknown;
+      const program = new Command().name("ai");
+      program
+        .command("audio")
+        .command("speak")
+        .argument("[text]", "Text")
+        .option("-q, --quiet", "Quiet")
+        .action((text, options) => {
+          received = { text, options };
+        });
+
+      await program.parseAsync(["node", "ai", ...args]);
+      return received;
+    }
+
+    expect(await parse(["--", "audio", "speak", "-q"])).toEqual({
+      text: "-q",
+      options: {},
+    });
+    expect(await parse(["audio", "--", "speak", "--quiet"])).toEqual({
+      text: "--quiet",
+      options: {},
+    });
+  });
 });
