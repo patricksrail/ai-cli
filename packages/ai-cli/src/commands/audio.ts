@@ -14,6 +14,7 @@ import type { OutputFormat } from "../lib/output.js";
 import { parseNonNegativeFloat, parsePositiveInt } from "../lib/parse.js";
 import { responseIdFromHeaders } from "../lib/response-id.js";
 import { readStdin, stdinAsText } from "../lib/stdin.js";
+import { addTimeoutOption, timeoutMs } from "../lib/timeout.js";
 
 const DEFAULT_CONCURRENCY = 4;
 const DEFAULT_TIMEOUT_MS = 120_000;
@@ -41,6 +42,7 @@ interface SpeakOptions {
   json?: boolean;
   play?: boolean;
   waveform?: boolean;
+  timeout: number;
 }
 
 interface TranscribeOptions {
@@ -51,6 +53,7 @@ interface TranscribeOptions {
   concurrency?: string;
   quiet?: boolean;
   json?: boolean;
+  timeout: number;
 }
 
 export function registerAudioCommand(program: Command) {
@@ -58,7 +61,7 @@ export function registerAudioCommand(program: Command) {
     .command("audio")
     .description("Generate speech or transcribe audio");
 
-  audio
+  const speak = audio
     .command("speak")
     .description("Generate speech audio from text")
     .argument("[text]", "Text to convert to speech")
@@ -80,8 +83,9 @@ export function registerAudioCommand(program: Command) {
     .option("-q, --quiet", "Suppress progress output")
     .option("--json", "Output metadata as JSON")
     .option("--no-play", "Disable audio playback after generation")
-    .option("--no-waveform", "Disable accurate terminal waveform preview")
-    .action(async (rawText: string | undefined, opts: SpeakOptions) => {
+    .option("--no-waveform", "Disable accurate terminal waveform preview");
+  addTimeoutOption(speak, DEFAULT_TIMEOUT_MS).action(
+    async (rawText: string | undefined, opts: SpeakOptions) => {
       const text = rawText?.trim() || undefined;
       const stdin = await readStdin();
       const stdinText = stdin ? stdinAsText(stdin).trim() : undefined;
@@ -109,7 +113,7 @@ export function registerAudioCommand(program: Command) {
       const { total, failed } = await runJobs(
         jobs,
         async (modelId) => {
-          const abort = AbortSignal.timeout(DEFAULT_TIMEOUT_MS);
+          const abort = AbortSignal.timeout(timeoutMs(opts.timeout));
           const result = await generateSpeech({
             headers: gatewayHeaders(),
             model: gateway.speechModel(modelId),
@@ -148,9 +152,10 @@ export function registerAudioCommand(program: Command) {
       );
       if (failed === total) process.exit(1);
       if (failed > 0) process.exit(2);
-    });
+    }
+  );
 
-  audio
+  const transcribeCommand = audio
     .command("transcribe")
     .description("Transcribe audio to text")
     .argument("[audio]", "Audio file path or URL")
@@ -169,8 +174,9 @@ export function registerAudioCommand(program: Command) {
       `Max parallel transcriptions (default: ${DEFAULT_CONCURRENCY})`
     )
     .option("-q, --quiet", "Suppress progress output")
-    .option("--json", "Output metadata as JSON")
-    .action(async (rawAudio: string | undefined, opts: TranscribeOptions) => {
+    .option("--json", "Output metadata as JSON");
+  addTimeoutOption(transcribeCommand, DEFAULT_TIMEOUT_MS).action(
+    async (rawAudio: string | undefined, opts: TranscribeOptions) => {
       const stdin = await readStdin();
       if (!rawAudio && !stdin) {
         process.stderr.write(
@@ -203,7 +209,7 @@ export function registerAudioCommand(program: Command) {
       const { total, failed } = await runJobs(
         jobs,
         async (modelId) => {
-          const abort = AbortSignal.timeout(DEFAULT_TIMEOUT_MS);
+          const abort = AbortSignal.timeout(timeoutMs(opts.timeout));
           const result = await transcribe({
             headers: gatewayHeaders(),
             model: gateway.transcriptionModel(modelId),
@@ -228,7 +234,8 @@ export function registerAudioCommand(program: Command) {
       );
       if (failed === total) process.exit(1);
       if (failed > 0) process.exit(2);
-    });
+    }
+  );
 }
 
 function buildSpeechText(

@@ -11,6 +11,7 @@ import { fetchGatewayModels, resolveModels } from "../lib/models.js";
 import { parsePositiveInt, parseSize, parseAspectRatio } from "../lib/parse.js";
 import { responseIdFromHeaders } from "../lib/response-id.js";
 import { readStdin } from "../lib/stdin.js";
+import { addTimeoutOption, timeoutMs } from "../lib/timeout.js";
 
 const DEFAULT_CONCURRENCY = 4;
 const DEFAULT_TIMEOUT_MS = 300_000;
@@ -28,10 +29,11 @@ interface ImageOptions {
   json?: boolean;
   concurrency?: string;
   preview?: boolean;
+  timeout: number;
 }
 
 export function registerImageCommand(program: Command) {
-  program
+  const command = program
     .command("image")
     .description("Generate an image from a prompt")
     .argument("[prompt]", "The prompt to generate an image from")
@@ -60,8 +62,9 @@ export function registerImageCommand(program: Command) {
     .option(
       "-p, --concurrency <n>",
       `Max parallel generations (default: ${DEFAULT_CONCURRENCY})`
-    )
-    .action(async (rawPrompt: string | undefined, opts: ImageOptions) => {
+    );
+  addTimeoutOption(command, DEFAULT_TIMEOUT_MS).action(
+    async (rawPrompt: string | undefined, opts: ImageOptions) => {
       const prompt = rawPrompt?.trim() || undefined;
       const stdin = await readStdin();
       const imageReferenceInputs = opts.image ?? [];
@@ -127,7 +130,7 @@ export function registerImageCommand(program: Command) {
       const { total, failed } = await runJobs(
         jobs,
         async (modelId) => {
-          const abort = AbortSignal.timeout(DEFAULT_TIMEOUT_MS);
+          const abort = AbortSignal.timeout(timeoutMs(opts.timeout));
 
           if (gatewayModels.languageImageModelIds.has(modelId)) {
             const messageContent: Array<
@@ -215,7 +218,8 @@ export function registerImageCommand(program: Command) {
       );
       if (failed === total) process.exit(1);
       if (failed > 0) process.exit(2);
-    });
+    }
+  );
 }
 
 export function languageImageProviderOptions(

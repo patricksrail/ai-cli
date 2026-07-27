@@ -15,6 +15,7 @@ import {
 } from "../lib/parse.js";
 import { responseIdFromHeaders } from "../lib/response-id.js";
 import { readStdin } from "../lib/stdin.js";
+import { addTimeoutOption, timeoutMs } from "../lib/timeout.js";
 
 const DEFAULT_CONCURRENCY = 2;
 const DEFAULT_TIMEOUT_MS = 300_000;
@@ -30,10 +31,11 @@ interface VideoOptions {
   json?: boolean;
   concurrency?: string;
   preview?: boolean;
+  timeout: number;
 }
 
 export function registerVideoCommand(program: Command) {
-  program
+  const command = program
     .command("video")
     .description("Generate a video from a prompt")
     .argument("[prompt]", "The prompt to generate a video from")
@@ -60,8 +62,9 @@ export function registerVideoCommand(program: Command) {
     .option(
       "-p, --concurrency <n>",
       `Max parallel generations (default: ${DEFAULT_CONCURRENCY})`
-    )
-    .action(async (rawPrompt: string | undefined, opts: VideoOptions) => {
+    );
+  addTimeoutOption(command, DEFAULT_TIMEOUT_MS).action(
+    async (rawPrompt: string | undefined, opts: VideoOptions) => {
       const prompt = rawPrompt?.trim() || undefined;
       const stdin = await readStdin();
       const imageReferenceInputs = opts.image ?? [];
@@ -117,7 +120,7 @@ export function registerVideoCommand(program: Command) {
       const { total, failed } = await runJobs(
         jobs,
         async (modelId) => {
-          const abort = AbortSignal.timeout(DEFAULT_TIMEOUT_MS);
+          const abort = AbortSignal.timeout(timeoutMs(opts.timeout));
           const result = await generateVideo({
             headers: {
               "http-referer": "https://github.com/vercel-labs/ai-cli",
@@ -148,5 +151,6 @@ export function registerVideoCommand(program: Command) {
       );
       if (failed === total) process.exit(1);
       if (failed > 0) process.exit(2);
-    });
+    }
+  );
 }

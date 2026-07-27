@@ -28,6 +28,9 @@ ai image "edit this" < photo.png
   <Property name="-p, --concurrency" type="number" default="4">
     Max parallel generations.
   </Property>
+  <Property name="--timeout" type="seconds" default="300">
+    Request timeout in seconds. Must be a positive integer.
+  </Property>
   <Property name="--size" type="WxH">
     Image size (e.g. `1024x1024`). Not supported by Gemini image models — use
     `--aspect-ratio` instead.
@@ -78,6 +81,9 @@ ai image "a dragon" | ai video "animate this"
   <Property name="-p, --concurrency" type="number" default="2">
     Max parallel generations.
   </Property>
+  <Property name="--timeout" type="seconds" default="300">
+    Request timeout in seconds. Must be a positive integer.
+  </Property>
   <Property name="--aspect-ratio" type="W:H">
     Aspect ratio (e.g. `16:9`).
   </Property>
@@ -123,6 +129,9 @@ ai text "summarize this" < notes.txt
   </Property>
   <Property name="-p, --concurrency" type="number" default="4">
     Max parallel generations.
+  </Property>
+  <Property name="--timeout" type="seconds" default="120">
+    Request timeout in seconds. Must be a positive integer.
   </Property>
   <Property name="-s, --system" type="string">
     System prompt.
@@ -183,6 +192,9 @@ cat voice-note.mp3 | ai audio transcribe -o transcript.txt
   <Property name="-p, --concurrency" type="number" default="4">
     Max parallel generations.
   </Property>
+  <Property name="--timeout" type="seconds" default="120">
+    Request timeout in seconds. Must be a positive integer.
+  </Property>
   <Property name="-q, --quiet" type="boolean">
     Suppress progress output.
   </Property>
@@ -221,6 +233,9 @@ cat announcement.txt | ai audio speak --format wav -o announcement.wav
   </Property>
   <Property name="-p, --concurrency" type="number" default="4">
     Max parallel transcriptions.
+  </Property>
+  <Property name="--timeout" type="seconds" default="120">
+    Request timeout in seconds. Must be a positive integer.
   </Property>
   <Property name="-q, --quiet" type="boolean">
     Suppress progress output.
@@ -293,6 +308,12 @@ Requests that exceed the per-command timeout are aborted automatically:
 | `audio transcribe` | 120 seconds |
 
 Image and video generation use a longer timeout because models typically need more processing time.
+
+Use `--timeout <seconds>` to allow a longer request without changing models. The value must be a positive integer:
+
+```bash
+ai image --timeout 600 "a detailed sprite atlas"
+```
 
 ## Exit codes
 
