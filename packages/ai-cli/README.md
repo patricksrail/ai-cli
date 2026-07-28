@@ -45,6 +45,7 @@ All commands support:
 -o, --output <path>      Output file path or directory
 -n, --count <n>          Number of generations per model (default: 1)
 -p, --concurrency <n>    Max parallel generations (default: 4, video: 2)
+--timeout <seconds>      Request timeout in seconds (default: text/audio 120, image/video 300)
 -q, --quiet              Suppress progress output
 --json                   Output metadata as JSON
 ```
@@ -251,6 +252,8 @@ Requests that exceed the timeout are aborted automatically:
 | `video` | 300 seconds |
 | `audio speak` | 120 seconds |
 | `audio transcribe` | 120 seconds |
+
+Use `--timeout <seconds>` to override the default for `text`, `image`, `video`, `audio speak`, or `audio transcribe`. The value must be a positive integer. For example, `ai image --timeout 600 "a detailed sprite atlas"` allows the request to run for up to 10 minutes.
 
 ### Exit Codes
 

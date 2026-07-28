@@ -40,6 +40,7 @@ ai models --type audio                   # list speech and transcription models
 -n, --count <n>        Number of generations per model
 -q, --quiet            Suppress progress output
 --json                 Output structured metadata as JSON (paths, timing, success/failure)
+--timeout <seconds>    Request timeout in seconds (see Timeouts for per-command defaults)
 ```
 
 ## Piping Patterns
@@ -110,6 +111,14 @@ When the CLI chooses a filename, it uses a response ID when available and falls 
 - video: 300 seconds
 - audio speak: 120 seconds
 - audio transcribe: 120 seconds
+
+Override with `--timeout <seconds>` when a prompt legitimately needs longer, instead of dropping to a faster model variant that changes the output:
+
+```bash
+ai image "a 72-cell sprite atlas, detailed" --timeout 600
+```
+
+The value is in seconds, not milliseconds, and is capped at 2147483.
 
 ## Exit Codes
 

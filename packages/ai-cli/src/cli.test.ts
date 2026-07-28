@@ -213,6 +213,30 @@ describe("cli integration", () => {
     expect(stdout).toContain("--output");
   });
 
+  test.each([
+    [["text"], "120"],
+    [["image"], "300"],
+    [["video"], "300"],
+    [["audio", "speak"], "120"],
+    [["audio", "transcribe"], "120"],
+  ])("%s --help lists --timeout with its default", async (command, seconds) => {
+    const { exitCode, stdout } = await run(...command, "--help");
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("--timeout");
+    expect(stdout).toContain(`default: ${seconds}`);
+  });
+
+  test("--timeout rejects a value that would overflow the timer", async () => {
+    const { exitCode, stderr } = await run(
+      "image",
+      "--timeout",
+      "3600000",
+      "a prompt"
+    );
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain("The value is in seconds, not milliseconds.");
+  });
+
   test("audio speak with no text and no stdin exits 1", async () => {
     const { exitCode, stderr } = await run("audio", "speak");
     expect(exitCode).toBe(1);
