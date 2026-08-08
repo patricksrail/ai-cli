@@ -64,6 +64,18 @@ describe("resolveModels", () => {
       "nonexistent",
     ]);
   });
+
+  test("rejects non-ASCII model IDs before they become request headers", () => {
+    expect(() => resolveModels("text", "𝕏")).toThrow(
+      'model ID must use printable ASCII characters without spaces (got "𝕏")'
+    );
+  });
+
+  test("rejects spaces inside model IDs", () => {
+    expect(() => resolveModels("text", "openai/gpt 5")).toThrow(
+      'model ID must use printable ASCII characters without spaces (got "openai/gpt 5")'
+    );
+  });
 });
 
 describe("resolveModels multi", () => {

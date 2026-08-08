@@ -36,6 +36,8 @@ ai image -m flux-2-pro "a sunset"
 ai audio speak -m tts-1 "hello"
 ```
 
+Model IDs must contain printable ASCII characters without spaces. This applies to both `--model` values and the `AI_CLI_*_MODEL` environment variables. Invalid values are rejected before a request is sent.
+
 ## Multi-model comparison
 
 Generate with multiple models by comma-separating `-m`:
