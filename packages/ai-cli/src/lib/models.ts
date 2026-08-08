@@ -230,13 +230,24 @@ export function resolveModels(
   userModel?: string,
   knownModels?: Pick<ModelEntry, "id">[]
 ): string[] {
-  if (!userModel) return [DEFAULTS[modality]];
+  if (!userModel) return [validateModelId(DEFAULTS[modality])];
   const models = userModel
     .split(",")
     .map((m) => m.trim())
     .filter(Boolean)
-    .map((m) => expandModelId(m, knownModels));
-  return models.length > 0 ? models : [DEFAULTS[modality]];
+    .map((m) => validateModelId(expandModelId(m, knownModels)));
+  return models.length > 0 ? models : [validateModelId(DEFAULTS[modality])];
+}
+
+function validateModelId(modelId: string): string {
+  // The Gateway SDK sends model IDs in an HTTP header. Validate before the SDK
+  // turns an invalid header value into a retried GatewayResponseError.
+  if (!/^[\x21-\x7e]+$/.test(modelId)) {
+    throw new Error(
+      `model ID must use printable ASCII characters without spaces (got ${JSON.stringify(modelId)})`
+    );
+  }
+  return modelId;
 }
 
 export function expandModelId(

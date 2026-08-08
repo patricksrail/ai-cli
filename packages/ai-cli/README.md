@@ -60,6 +60,8 @@ ai image -m flux-2-pro "a sunset"   # resolves to bfl/flux-2-pro
 ai audio speak -m tts-1 "hello"     # resolves to openai/tts-1
 ```
 
+Model IDs must contain printable ASCII characters without spaces. This applies to both `--model` values and the `AI_CLI_*_MODEL` environment variables.
+
 ### image
 
 ```

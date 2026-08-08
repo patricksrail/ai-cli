@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Bug Fixes
+
+- **Invalid model ID errors** - model IDs containing Unicode characters or spaces now fail immediately with an actionable validation error instead of being retried and reported as an invalid AI Gateway response
+
 ## 0.4.2
 
 <!-- release:start -->
