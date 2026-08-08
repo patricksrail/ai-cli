@@ -1,10 +1,27 @@
 # Changelog
 
-## Unreleased
+## 0.4.3
+
+<!-- release:start -->
+
+### New Features
+
+- **Configurable request timeouts** - `--timeout <seconds>` lets text, image, video and audio requests run longer than their per-command defaults, with validation for invalid or overflowing values (#79)
+
+### Improvements
+
+- **Leaner CLI runtime** - replaced the Commander dependency with a focused local argument parser while preserving existing CLI behavior (#77)
 
 ### Bug Fixes
 
-- **Invalid model ID errors** - model IDs containing Unicode characters or spaces now fail immediately with an actionable validation error instead of being retried and reported as an invalid AI Gateway response
+- **Invalid model ID errors** - model IDs containing Unicode characters or spaces now fail immediately with an actionable validation error instead of being retried and reported as an invalid AI Gateway response (#80)
+
+### Contributors
+
+- @Railly
+- @ctate
+
+<!-- release:end -->
 
 ## 0.4.2
 
