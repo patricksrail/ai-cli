@@ -1,11 +1,61 @@
 import { extractHeadings, getDoc } from "fromsrc";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+
+import { docsHref } from "@/lib/docs-pages";
+import { description as siteDescription, siteName } from "@/lib/site";
 
 import { Mdx } from "../mdx";
 import { Outline } from "../outline";
 
 interface Props {
   params: Promise<{ slug?: string[] }>;
+}
+
+function metaDescription(text: string | undefined): string {
+  if (text && text.length >= 50) {
+    return text;
+  }
+  if (!text) {
+    return siteDescription;
+  }
+  const combined = `${text} ${siteDescription}`;
+  return combined.length >= 50 ? combined : siteDescription;
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
+  const doc = await getDoc("docs", slug ?? []);
+  if (!doc) {
+    return {};
+  }
+  const path = docsHref(doc.slug === "index" ? "" : doc.slug);
+  const description = metaDescription(doc.description);
+  return {
+    title: doc.title,
+    description,
+    alternates: {
+      canonical: path,
+      types: {
+        "text/markdown": `${path}.md`,
+      },
+    },
+    openGraph: {
+      type: "website",
+      locale: "en_US",
+      siteName,
+      title: doc.title,
+      description,
+      url: path,
+      images: [{ url: "/og", width: 1200, height: 630, alt: doc.title }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: doc.title,
+      description,
+      images: ["/og"],
+    },
+  };
 }
 
 export default async function DocsPage({ params }: Props) {
