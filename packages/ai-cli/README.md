@@ -88,6 +88,7 @@ Gemini image models (e.g. `google/gemini-2.5-flash-image`) don't support `--size
 ```
 -i, --image <path-or-url> Image input path or URL
 --aspect-ratio <W:H>     Aspect ratio (e.g. 16:9)
+--resolution <WxH>       Video resolution (e.g. 1920x1080 for 1080p)
 --duration <seconds>     Duration in seconds
 --no-preview             Disable inline video frame preview
 ```
@@ -98,6 +99,8 @@ Image inputs can be local paths, `file://` URLs, `http(s)://` URLs or data URLs.
 ai video -i input.png "animate this"
 cat input.png | ai video "animate this"
 ```
+
+Resolution support is model-dependent; unsupported resolutions may be rejected by the selected video model.
 
 ### text
 

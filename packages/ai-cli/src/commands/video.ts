@@ -12,6 +12,7 @@ import {
   parsePositiveInt,
   parseAspectRatio,
   parseNonNegativeFloat,
+  parseSize,
 } from "../lib/parse.js";
 import { responseIdFromHeaders } from "../lib/response-id.js";
 import { readStdin } from "../lib/stdin.js";
@@ -26,6 +27,7 @@ interface VideoOptions {
   image?: string[];
   count?: string;
   aspectRatio?: string;
+  resolution?: string;
   duration?: string;
   quiet?: boolean;
   json?: boolean;
@@ -52,6 +54,7 @@ export function registerVideoCommand(program: Command) {
     )
     .option("-n, --count <n>", "Number of videos per model (default: 1)")
     .option("--aspect-ratio <W:H>", "Aspect ratio (e.g. 16:9)")
+    .option("--resolution <WxH>", "Video resolution (e.g. 1920x1080)")
     .option("--duration <seconds>", "Video duration in seconds")
     .option("-q, --quiet", "Suppress progress output")
     .option("--json", "Output metadata as JSON")
@@ -108,12 +111,7 @@ export function registerVideoCommand(program: Command) {
       const countPerModel = opts.count
         ? parsePositiveInt(opts.count, "count")
         : 1;
-      const aspectRatio = opts.aspectRatio
-        ? parseAspectRatio(opts.aspectRatio)
-        : undefined;
-      const duration = opts.duration
-        ? parseNonNegativeFloat(opts.duration, "duration")
-        : undefined;
+      const generationOptions = videoGenerationOptions(opts);
 
       const jobs = buildJobs(models, countPerModel);
 
@@ -129,8 +127,7 @@ export function registerVideoCommand(program: Command) {
             model: gateway.video(modelId),
             prompt: videoPrompt,
             abortSignal: abort,
-            aspectRatio,
-            duration,
+            ...generationOptions,
           });
           return {
             data: Buffer.from(result.video.uint8Array),
@@ -153,4 +150,22 @@ export function registerVideoCommand(program: Command) {
       if (failed > 0) process.exit(2);
     }
   );
+}
+
+export function videoGenerationOptions(opts: {
+  aspectRatio?: string;
+  resolution?: string;
+  duration?: string;
+}) {
+  return {
+    aspectRatio: opts.aspectRatio
+      ? parseAspectRatio(opts.aspectRatio)
+      : undefined,
+    resolution: opts.resolution
+      ? parseSize(opts.resolution, "resolution")
+      : undefined,
+    duration: opts.duration
+      ? parseNonNegativeFloat(opts.duration, "duration")
+      : undefined,
+  };
 }
