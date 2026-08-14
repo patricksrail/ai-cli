@@ -32,6 +32,14 @@ ai audio transcribe recording.mp3        # transcribe audio
 ai models --type audio                   # list speech and transcription models
 ```
 
+## Video Resolution
+
+Use `--resolution <WxH>` to request a specific video output resolution. Supported resolutions vary by model.
+
+```bash
+ai video "a cinematic landscape" --resolution 1920x1080
+```
+
 ## Key Flags
 
 ```
