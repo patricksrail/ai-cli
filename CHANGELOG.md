@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### New Features
+
+- **Video resolution** - `ai video --resolution <WxH>` requests an explicit output resolution such as `1920x1080` from supported video models
+
 ## 0.4.3
 
 <!-- release:start -->
@@ -7,7 +13,6 @@
 ### New Features
 
 - **Configurable request timeouts** - `--timeout <seconds>` lets text, image, video and audio requests run longer than their per-command defaults, with validation for invalid or overflowing values (#79)
-- **Video resolution** - `ai video --resolution <WxH>` requests an explicit output resolution such as `1920x1080` from supported video models
 
 ### Improvements
 
