@@ -63,6 +63,7 @@ Generate video from a prompt or image.
 
 ```bash
 ai video "a spinning triangle"
+ai video "a cinematic landscape" --resolution 1920x1080
 ai image "a dragon" | ai video "animate this"
 ```
 
@@ -86,6 +87,10 @@ ai image "a dragon" | ai video "animate this"
   </Property>
   <Property name="--aspect-ratio" type="W:H">
     Aspect ratio (e.g. `16:9`).
+  </Property>
+  <Property name="--resolution" type="WxH">
+    Video resolution (e.g. `1920x1080` for 1080p). Supported resolutions vary
+    by model.
   </Property>
   <Property name="--duration" type="seconds">
     Duration in seconds.

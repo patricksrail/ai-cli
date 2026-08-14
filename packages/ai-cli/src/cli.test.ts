@@ -175,6 +175,7 @@ describe("cli integration", () => {
     expect(stdout).toContain("--image");
     expect(stdout).toContain("--duration");
     expect(stdout).toContain("--aspect-ratio");
+    expect(stdout).toContain("--resolution");
   });
 
   test("audio --help exits 0 and lists subcommands", async () => {
