@@ -1,13 +1,8 @@
 import { generateNotFoundMarkdown } from "@vercel/agent-readability";
 import { getDoc } from "fromsrc";
 
-import {
-  DOCS_DIR,
-  docsFilePath,
-  docsHref,
-  lastModifiedFor,
-  publicDocs,
-} from "./docs-pages";
+import { DOCS_DIR, docsHref, publicDocs } from "./docs-pages";
+import { mdxToMarkdown } from "./mdx-markdown";
 import { canonicalUrlFor, description, siteName, siteUrl } from "./site";
 
 function yamlString(value: string): string {
@@ -18,14 +13,12 @@ function frontmatter(fields: {
   title: string;
   description: string;
   canonicalUrl: string;
-  lastUpdated: Date;
 }): string {
   return [
     "---",
     `title: ${yamlString(fields.title)}`,
     `description: ${yamlString(fields.description)}`,
     `canonical_url: ${yamlString(fields.canonicalUrl)}`,
-    `last_updated: ${fields.lastUpdated.toISOString().slice(0, 10)}`,
     "---",
     "",
   ].join("\n");
@@ -38,14 +31,13 @@ async function documentationLinks(): Promise<string> {
     .join("\n");
 }
 
-async function homeMarkdown(lastUpdated: Date): Promise<string> {
+async function homeMarkdown(): Promise<string> {
   const canonicalUrl = canonicalUrlFor("/");
   const docsLinks = await documentationLinks();
   return `${frontmatter({
     title: siteName,
     description,
     canonicalUrl,
-    lastUpdated,
   })}# ${siteName}
 
 ${description}
@@ -90,9 +82,8 @@ export async function markdownForPathname(pathname: string): Promise<{
       : pathname || "/";
 
   if (normalized === "/") {
-    const lastUpdated = lastModifiedFor(`${process.cwd()}/app/page.tsx`);
     return {
-      body: await homeMarkdown(lastUpdated),
+      body: await homeMarkdown(),
       canonicalUrl: canonicalUrlFor("/"),
       found: true,
     };
@@ -115,16 +106,14 @@ export async function markdownForPathname(pathname: string): Promise<{
     if (doc) {
       const href = docsHref(doc.slug === "index" ? "" : doc.slug);
       const canonicalUrl = canonicalUrlFor(href);
-      const lastUpdated = lastModifiedFor(docsFilePath(slug.join("/")));
       const heading = `# ${doc.title}`;
       const body = `${frontmatter({
         title: doc.title,
         description: doc.description ?? description,
         canonicalUrl,
-        lastUpdated,
       })}${heading}
 
-${doc.content.trim()}
+${mdxToMarkdown(doc.content)}
 `;
       return { body, canonicalUrl, found: true };
     }

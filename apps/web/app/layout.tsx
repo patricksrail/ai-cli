@@ -10,12 +10,6 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: siteName,
   description,
-  alternates: {
-    canonical: "/",
-    types: {
-      "text/markdown": "/index.md",
-    },
-  },
   openGraph: {
     type: "website",
     locale: "en_US",

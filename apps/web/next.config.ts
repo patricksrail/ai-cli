@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 const config: NextConfig = {
   reactCompiler: true,
   outputFileTracingIncludes: {
-    "/*": ["./docs/**/*", "./app/page.tsx"],
+    "/*": ["./docs/**/*"],
   },
   async rewrites() {
     return {
