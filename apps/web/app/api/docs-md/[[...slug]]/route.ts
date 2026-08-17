@@ -9,7 +9,7 @@ interface Props {
 export async function GET(_request: Request, { params }: Props) {
   const { slug } = await params;
   const pathname = slug && slug.length > 0 ? `/${slug.join("/")}` : "/";
-  const page = await markdownForPathname(pathname);
+  const page = await markdownForPathname(pathname, slug ?? []);
   const headers = new Headers({
     "Content-Type": "text/markdown; charset=utf-8",
   });

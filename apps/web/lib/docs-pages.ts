@@ -2,6 +2,13 @@ import { getAllDocs } from "fromsrc";
 
 export const DOCS_DIR = "docs";
 
+export function isSafePathSegments(segments: readonly string[]): boolean {
+  return segments.every(
+    (segment) =>
+      segment !== ".." && !segment.includes("/") && !segment.includes("\\")
+  );
+}
+
 export function docsHref(slug: string): string {
   return slug ? `/docs/${slug}` : "/docs";
 }

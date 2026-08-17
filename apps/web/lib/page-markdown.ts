@@ -1,7 +1,12 @@
 import { generateNotFoundMarkdown } from "@vercel/agent-readability";
 import { getDoc } from "fromsrc";
 
-import { DOCS_DIR, docsHref, publicDocs } from "./docs-pages";
+import {
+  DOCS_DIR,
+  docsHref,
+  isSafePathSegments,
+  publicDocs,
+} from "./docs-pages";
 import { mdxToMarkdown } from "./mdx-markdown";
 import { canonicalUrlFor, description, siteName, siteUrl } from "./site";
 
@@ -71,7 +76,10 @@ ${docsLinks}
 `;
 }
 
-export async function markdownForPathname(pathname: string): Promise<{
+export async function markdownForPathname(
+  pathname: string,
+  decodedSegments: readonly string[]
+): Promise<{
   body: string;
   canonicalUrl: string;
   found: boolean;
@@ -102,7 +110,9 @@ export async function markdownForPathname(pathname: string): Promise<{
       normalized === "/docs"
         ? []
         : normalized.slice("/docs/".length).split("/");
-    const doc = await getDoc(DOCS_DIR, slug);
+    const safe =
+      isSafePathSegments(slug) && isSafePathSegments(decodedSegments);
+    const doc = safe ? await getDoc(DOCS_DIR, slug) : null;
     if (doc) {
       const href = docsHref(doc.slug === "index" ? "" : doc.slug);
       const canonicalUrl = canonicalUrlFor(href);

@@ -2,7 +2,7 @@ import { extractHeadings, getDoc } from "fromsrc";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { docsHref } from "@/lib/docs-pages";
+import { docsHref, isSafePathSegments } from "@/lib/docs-pages";
 import { description as siteDescription, siteName } from "@/lib/site";
 
 import { Mdx } from "../mdx";
@@ -25,19 +25,23 @@ function metaDescription(text: string | undefined): string {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const doc = await getDoc("docs", slug ?? []);
+  const path = slug ?? [];
+  if (!isSafePathSegments(path)) {
+    return {};
+  }
+  const doc = await getDoc("docs", path);
   if (!doc) {
     return {};
   }
-  const path = docsHref(doc.slug === "index" ? "" : doc.slug);
+  const href = docsHref(doc.slug === "index" ? "" : doc.slug);
   const description = metaDescription(doc.description);
   return {
     title: doc.title,
     description,
     alternates: {
-      canonical: path,
+      canonical: href,
       types: {
-        "text/markdown": `${path}.md`,
+        "text/markdown": `${href}.md`,
       },
     },
     openGraph: {
@@ -46,7 +50,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       siteName,
       title: doc.title,
       description,
-      url: path,
+      url: href,
       images: [{ url: "/og", width: 1200, height: 630, alt: doc.title }],
     },
     twitter: {
@@ -61,6 +65,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function DocsPage({ params }: Props) {
   const { slug } = await params;
   const path = slug ?? [];
+  if (!isSafePathSegments(path)) {
+    notFound();
+  }
   const doc = await getDoc("docs", path);
 
   if (!doc) {notFound();}
