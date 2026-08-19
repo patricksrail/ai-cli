@@ -16,7 +16,7 @@
       "name": "@ai-cli/web",
       "version": "0.0.0",
       "dependencies": {
-        "@vercel/agent-readability": "0.5.0",
+        "@vercel/agent-readability": "0.5.1",
         "fromsrc": "0.0.23",
         "geist": "^1.4.0",
         "next": "16.2.1",
@@ -345,7 +345,7 @@
 
     "@ungap/structured-clone": ["@ungap/structured-clone@1.3.0", "", {}, "sha512-WmoN8qaIAo7WTYWbAZuG8PYEhn5fkz7dZrqTBZ7dtt//lL2Gwms1IcnQ5yHqjDfX8Ft5j4YzDM23f87zBfDe9g=="],
 
-    "@vercel/agent-readability": ["@vercel/agent-readability@0.5.0", "", { "peerDependencies": { "@sveltejs/kit": ">=2", "@vercel/functions": "^3", "h3": ">=1.8 <2", "next": ">=14" }, "optionalPeers": ["@sveltejs/kit", "@vercel/functions", "h3", "next"], "bin": { "agent-readability": "dist/cli/index.cjs" } }, "sha512-ZY2i+p2/YCu4kAMGeGCq7Dn22XFWmLwQ1+sa2PrvWdeGCKqcx+CNp+4RF022QI+/e8RgPRjwQurjpmafiZlhTA=="],
+    "@vercel/agent-readability": ["@vercel/agent-readability@0.5.1", "", { "peerDependencies": { "@sveltejs/kit": ">=2", "@vercel/functions": "^3", "h3": ">=1.8 <2", "next": ">=14" }, "optionalPeers": ["@sveltejs/kit", "@vercel/functions", "h3", "next"], "bin": { "agent-readability": "dist/cli/index.cjs" } }, "sha512-iQih444RJMoAREej/ccTmAUc+PiSogRffqQZMvGdcfF/5GN/4VilXrMHYQWRIq75c70D2AIOxX5sh9EG23ZT3w=="],
 
     "@vercel/oidc": ["@vercel/oidc@3.2.0", "", {}, "sha512-UycprH3T6n3jH0k44NHMa7pnFHGu/N05MjojYr+Mc6I7obkoLIJujSWwin1pCvdy/eOxrI/l3uDLQsmcrOb4ug=="],
 
