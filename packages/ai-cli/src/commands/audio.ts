@@ -3,11 +3,11 @@ import { readFile } from "fs/promises";
 import { extname } from "path";
 import { fileURLToPath } from "url";
 
-import { gateway } from "@ai-sdk/gateway";
 import { generateSpeech, transcribe } from "ai";
 
 import { previewAudioOutputs } from "../lib/audio-preview.js";
 import type { Command } from "../lib/command.js";
+import { speechModel, transcriptionModel } from "../lib/gateway.js";
 import { buildJobs, runJobs } from "../lib/jobs.js";
 import { fetchGatewayModels, resolveModels } from "../lib/models.js";
 import type { OutputFormat } from "../lib/output.js";
@@ -116,7 +116,7 @@ export function registerAudioCommand(program: Command) {
           const abort = AbortSignal.timeout(timeoutMs(opts.timeout));
           const result = await generateSpeech({
             headers: gatewayHeaders(),
-            model: gateway.speechModel(modelId),
+            model: speechModel(modelId),
             text: speechText,
             voice: opts.voice ?? defaultVoiceForModel(modelId),
             outputFormat,
@@ -212,7 +212,7 @@ export function registerAudioCommand(program: Command) {
           const abort = AbortSignal.timeout(timeoutMs(opts.timeout));
           const result = await transcribe({
             headers: gatewayHeaders(),
-            model: gateway.transcriptionModel(modelId),
+            model: transcriptionModel(modelId),
             audio: audioInput,
             abortSignal: abort,
           });

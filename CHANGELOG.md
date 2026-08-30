@@ -5,6 +5,7 @@
 ### New Features
 
 - **Video resolution** - `ai video --resolution <WxH>` requests an explicit output resolution such as `1920x1080` from supported video models
+- **Cloudflare AI Gateway** - `AI_CLI_GATEWAY=cloudflare` routes text, image, video, speech and transcription through provider-native Cloudflare endpoints
 
 ## 0.4.3
 

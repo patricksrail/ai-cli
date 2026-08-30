@@ -4,7 +4,7 @@ description: Generate text, images, video, and audio from the terminal.
 order: 1
 ---
 
-ai-cli is a tiny, agent-native CLI for generating text, images, video, and audio with dead-simple commands. It uses the [Vercel AI SDK](https://sdk.vercel.ai) and [AI Gateway](https://vercel.com/docs/ai-gateway) for unified access to hundreds of models.
+ai-cli is a tiny, agent-native CLI for generating text, images, video, and audio with dead-simple commands. It uses the [Vercel AI SDK](https://sdk.vercel.ai) with Vercel AI Gateway by default and supports Cloudflare AI Gateway provider-native routing.
 
 ## What it does
 
@@ -34,6 +34,8 @@ ai-cli is a tiny, agent-native CLI for generating text, images, video, and audio
     ```bash
     export AI_GATEWAY_API_KEY="your-key"
     ```
+
+    For Cloudflare setup, see [Installation](/docs/installation#gateway-access).
   </Step>
   <Step>
     ### Generate something

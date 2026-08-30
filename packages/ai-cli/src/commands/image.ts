@@ -1,6 +1,7 @@
-import { generateImage, generateText, gateway, type JSONValue } from "ai";
+import { generateImage, generateText, type JSONValue } from "ai";
 
 import type { Command } from "../lib/command.js";
+import { imageModel, languageModel } from "../lib/gateway.js";
 import {
   collectImageReference,
   loadImageReferences,
@@ -163,7 +164,7 @@ export function registerImageCommand(program: Command) {
                 "http-referer": "https://github.com/vercel-labs/ai-cli",
                 "x-title": "ai-cli",
               },
-              model: gateway(modelId),
+              model: languageModel(modelId),
               messages: [{ role: "user", content: messageContent }],
               abortSignal: abort,
               providerOptions: languageImageProviderOptions(
@@ -181,7 +182,9 @@ export function registerImageCommand(program: Command) {
             }
             return {
               data: Buffer.from(imageFile.uint8Array),
-              id: result.response.id,
+              id:
+                responseIdFromHeaders(result.response.headers) ??
+                result.response.id,
             };
           }
 
@@ -190,7 +193,7 @@ export function registerImageCommand(program: Command) {
               "http-referer": "https://github.com/vercel-labs/ai-cli",
               "x-title": "ai-cli",
             },
-            model: gateway.image(modelId),
+            model: imageModel(modelId),
             prompt: imagePrompt,
             abortSignal: abort,
             n: 1,

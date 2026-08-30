@@ -1,6 +1,6 @@
 # ai
 
-A tiny, agent-native CLI for generating images, video, audio and text with dead-simple commands, stdin support and predictable artifact outputs. Uses [Vercel AI SDK](https://sdk.vercel.ai) and [AI Gateway](https://vercel.com/docs/ai-gateway) for unified access to hundreds of models.
+A tiny, agent-native CLI for generating images, video, audio and text with dead-simple commands, stdin support and predictable artifact outputs. Uses [Vercel AI SDK](https://sdk.vercel.ai) with Vercel AI Gateway by default or Cloudflare AI Gateway's provider-native routes.
 
 ## Install
 
@@ -8,7 +8,25 @@ A tiny, agent-native CLI for generating images, video, audio and text with dead-
 npm install -g ai-cli
 ```
 
-Requires Node.js 22+ and an [AI Gateway](https://vercel.com/docs/ai-gateway) API key or a provider-specific key (e.g. `OPENAI_API_KEY`).
+Requires Node.js 22+ and either a [Vercel AI Gateway](https://vercel.com/docs/ai-gateway) key or a configured [Cloudflare AI Gateway](https://developers.cloudflare.com/ai-gateway/) plus provider keys.
+
+### Cloudflare AI Gateway
+
+Set the backend, Cloudflare account, and gateway name. Provider requests keep their native API shape and pass through Cloudflare for logging, caching, and gateway policy:
+
+```bash
+export AI_CLI_GATEWAY="cloudflare"
+export CLOUDFLARE_ACCOUNT_ID="your-account-id"
+export CLOUDFLARE_AI_GATEWAY_ID="default"
+
+# Add the providers you use.
+export OPENAI_API_KEY="your-openai-key"
+export GEMINI_API_KEY="your-gemini-key"
+export OPENROUTER_API_KEY="your-openrouter-key"
+export REPLICATE_API_TOKEN="your-replicate-token"
+```
+
+Set `CLOUDFLARE_API_TOKEN` when the selected gateway has authentication enabled. Cloudflare mode currently supports OpenAI and Google for text and audio; OpenAI, Google, OpenRouter, and Replicate for their AI SDK-supported image/video methods; and OpenRouter as the fallback for other text creators. For provider-explicit nested model IDs, use forms such as `openrouter/anthropic/claude-sonnet-4` and `replicate/prunaai/p-video`.
 
 ## Usage
 
@@ -59,6 +77,8 @@ ai text -m gpt-5.5 "hello"          # resolves to openai/gpt-5.5
 ai image -m flux-2-pro "a sunset"   # resolves to bfl/flux-2-pro
 ai audio speak -m tts-1 "hello"     # resolves to openai/tts-1
 ```
+
+In Cloudflare mode, `openai/...` and `google/...` use those provider-native routes. Prefix nested IDs with `openrouter/...` or `replicate/...` to select those routes explicitly. Other creators use OpenRouter for text and Replicate for image/video, preserving the full model ID. Model discovery and short-name expansion still use Vercel's public catalog, so use a full provider-prefixed ID when Cloudflare availability differs.
 
 Model IDs must contain printable ASCII characters without spaces. This applies to both `--model` values and the `AI_CLI_*_MODEL` environment variables.
 
@@ -232,8 +252,15 @@ When the CLI needs to choose a filename, it uses a response id when available an
 
 | Variable | Description |
 |---|---|
-| `AI_GATEWAY_API_KEY` | AI Gateway authentication key |
+| `AI_CLI_GATEWAY` | Gateway backend: `vercel` (default) or `cloudflare` |
+| `AI_GATEWAY_API_KEY` | Vercel AI Gateway authentication key |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account ID; required in Cloudflare mode |
+| `CLOUDFLARE_AI_GATEWAY_ID` | Cloudflare AI Gateway name (default: `default`) |
+| `CLOUDFLARE_API_TOKEN` | Authentication token for an authenticated Cloudflare AI Gateway |
 | `OPENAI_API_KEY` | Provider-specific key (or other provider keys) |
+| `GEMINI_API_KEY` | Google AI Studio provider key in Cloudflare mode |
+| `OPENROUTER_API_KEY` | OpenRouter provider key in Cloudflare mode |
+| `REPLICATE_API_TOKEN` | Replicate provider token in Cloudflare mode |
 | `AI_CLI_TEXT_MODEL` | Default text model (overrides `openai/gpt-5.5`) |
 | `AI_CLI_IMAGE_MODEL` | Default image model (overrides `openai/gpt-image-2`) |
 | `AI_CLI_VIDEO_MODEL` | Default video model (overrides `bytedance/seedance-2.0`) |

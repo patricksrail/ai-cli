@@ -18,9 +18,9 @@ pnpm add -g ai-cli
 yarn global add ai-cli
 ```
 
-## API key
+## Gateway access
 
-ai-cli requires an API key for model access. Set one of the following environment variables:
+Vercel AI Gateway remains the default. Set its key as before:
 
 <Properties>
   <Property name="AI_GATEWAY_API_KEY" type="string">
@@ -36,6 +36,17 @@ Get a gateway key from the [Vercel AI Gateway dashboard](https://vercel.com/docs
 ```bash
 export AI_GATEWAY_API_KEY="your-key"
 ```
+
+To use Cloudflare AI Gateway provider-native routing instead:
+
+```bash
+export AI_CLI_GATEWAY="cloudflare"
+export CLOUDFLARE_ACCOUNT_ID="your-account-id"
+export CLOUDFLARE_AI_GATEWAY_ID="default"
+export OPENAI_API_KEY="your-openai-key"
+```
+
+Add `GEMINI_API_KEY`, `OPENROUTER_API_KEY`, or `REPLICATE_API_TOKEN` for those providers. If the Cloudflare gateway has authentication enabled, also set `CLOUDFLARE_API_TOKEN`.
 
 Add this to your shell profile (`~/.zshrc`, `~/.bashrc`, etc.) to persist across sessions.
 
@@ -54,7 +65,6 @@ If you see generated text, you're ready.
     ai-cli runs with Bun. Install from bun.sh.
   </Property>
   <Property name="API key" type="string" required>
-    A Vercel AI Gateway key or provider-specific key.
+    A Vercel AI Gateway key, or Cloudflare configuration plus at least one provider key.
   </Property>
 </Properties>
-

@@ -38,6 +38,19 @@ ai audio speak -m tts-1 "hello"
 
 Model IDs must contain printable ASCII characters without spaces. This applies to both `--model` values and the `AI_CLI_*_MODEL` environment variables. Invalid values are rejected before a request is sent.
 
+### Cloudflare provider routing
+
+With `AI_CLI_GATEWAY=cloudflare`, `openai/...` and `google/...` use their provider-native Cloudflare routes. Prefix nested provider model IDs explicitly when needed:
+
+```bash
+ai text -m "openrouter/anthropic/claude-sonnet-4" "hello"
+ai video -m "replicate/prunaai/p-video" "a paper airplane"
+```
+
+Other creator IDs route through OpenRouter for text and Replicate for image/video while preserving the complete ID. Speech and transcription currently require an OpenAI or Google model.
+
+The `models` command and short-name expansion still use Vercel's public model catalog. Use a full provider-prefixed ID when Cloudflare or a provider account exposes a different set of models.
+
 ## Multi-model comparison
 
 Generate with multiple models by comma-separating `-m`:
@@ -97,7 +110,7 @@ Latency (time to first token) and throughput are p50 over the last hour; uptime 
 
 ## Providers
 
-All models are accessed through [Vercel AI Gateway](https://vercel.com/docs/ai-gateway):
+Models use [Vercel AI Gateway](https://vercel.com/docs/ai-gateway) by default. Cloudflare mode sends supported models through [Cloudflare's provider-native routes](https://developers.cloudflare.com/ai-gateway/usage/providers/).
 
 <Cards>
   <Card title="OpenAI" description="GPT-5.5, GPT-4.1, GPT Image 2, TTS, Whisper" />

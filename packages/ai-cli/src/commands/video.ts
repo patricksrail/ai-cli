@@ -1,6 +1,7 @@
-import { experimental_generateVideo as generateVideo, gateway } from "ai";
+import { experimental_generateVideo as generateVideo } from "ai";
 
 import type { Command } from "../lib/command.js";
+import { videoDownload, videoModel } from "../lib/gateway.js";
 import {
   collectImageReference,
   loadImageReferences,
@@ -124,9 +125,10 @@ export function registerVideoCommand(program: Command) {
               "http-referer": "https://github.com/vercel-labs/ai-cli",
               "x-title": "ai-cli",
             },
-            model: gateway.video(modelId),
+            model: videoModel(modelId),
             prompt: videoPrompt,
             abortSignal: abort,
+            download: videoDownload(modelId),
             ...generationOptions,
           });
           return {

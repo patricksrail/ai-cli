@@ -19,6 +19,10 @@ export OPENAI_API_KEY="sk-..."         # OpenAI models only
 
 Add the export to your shell profile (`~/.zshrc`, `~/.bashrc`) to persist across sessions.
 
+For Cloudflare mode, set `AI_CLI_GATEWAY=cloudflare`, `CLOUDFLARE_ACCOUNT_ID`, and the provider key required by the model. `CLOUDFLARE_AI_GATEWAY_ID` defaults to `default`. Set `CLOUDFLARE_API_TOKEN` only when gateway authentication is enabled.
+
+Nested provider IDs keep both provider and creator, for example `openrouter/anthropic/claude-sonnet-4` or `replicate/prunaai/p-video`.
+
 ## Invalid model ID
 
 ```

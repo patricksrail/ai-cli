@@ -1,4 +1,6 @@
 const RESPONSE_ID_HEADERS = [
+  "cf-aig-log-id",
+  "cf-aig-run-id",
   "x-ai-gateway-response-id",
   "x-ai-gateway-request-id",
   "x-vercel-id",

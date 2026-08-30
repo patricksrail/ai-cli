@@ -1,12 +1,12 @@
 import {
   generateText,
-  gateway,
   type ImagePart,
   type ModelMessage,
   type TextPart,
 } from "ai";
 
 import type { Command } from "../lib/command.js";
+import { languageModel } from "../lib/gateway.js";
 import {
   collectImageReference,
   isLikelyImage,
@@ -17,6 +17,7 @@ import { buildJobs, runJobs } from "../lib/jobs.js";
 import { fetchGatewayModels, resolveModels } from "../lib/models.js";
 import type { OutputFormat } from "../lib/output.js";
 import { parsePositiveInt, parseTemperature } from "../lib/parse.js";
+import { responseIdFromHeaders } from "../lib/response-id.js";
 import { readStdin, stdinAsText } from "../lib/stdin.js";
 import { addTimeoutOption, timeoutMs } from "../lib/timeout.js";
 
@@ -127,14 +128,19 @@ export function registerTextCommand(program: Command) {
               "http-referer": "https://github.com/vercel-labs/ai-cli",
               "x-title": "ai-cli",
             },
-            model: gateway(modelId),
+            model: languageModel(modelId),
             prompt: textPrompt,
             system: opts.system,
             maxOutputTokens: maxTokens,
             temperature,
             abortSignal: abort,
           });
-          return { data: result.text, id: result.response.id };
+          return {
+            data: result.text,
+            id:
+              responseIdFromHeaders(result.response.headers) ??
+              result.response.id,
+          };
         },
         {
           noun: "text",
