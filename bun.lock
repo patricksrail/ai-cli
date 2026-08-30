@@ -47,6 +47,7 @@
         "ai": "./dist/index.js",
       },
       "dependencies": {
+        "@ai-sdk/fal": "3.0.34",
         "@ai-sdk/google": "4.0.57",
         "@ai-sdk/openai": "4.0.51",
         "@ai-sdk/provider-utils": "5.0.33",
@@ -70,6 +71,8 @@
     "@ai-cli/typescript-config": ["@ai-cli/typescript-config@workspace:packages/typescript-config"],
 
     "@ai-cli/web": ["@ai-cli/web@workspace:apps/web"],
+
+    "@ai-sdk/fal": ["@ai-sdk/fal@3.0.34", "", { "dependencies": { "@ai-sdk/provider": "4.0.8", "@ai-sdk/provider-utils": "5.0.33" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-HnDyWbd+aGp23AcbRlu22sEK0X4ogKPPqQn4LR9TkpibmS2ML6DjcKLgSksoqW1y5WeJ8CTBye6VsD7bDR4iwQ=="],
 
     "@ai-sdk/gateway": ["@ai-sdk/gateway@4.0.68", "", { "dependencies": { "@ai-sdk/provider": "4.0.8", "@ai-sdk/provider-utils": "5.0.33", "@vercel/oidc": "3.2.0" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-XKvZv6HFoMOWK64zXMaQatk4SxBzBDkGg7enXPWsCkxqPP4zDhFewOoBKasf3FPnZP9ceE+Yj3BgW925blAWtw=="],
 

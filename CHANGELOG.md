@@ -6,6 +6,16 @@
 
 - **Video resolution** - `ai video --resolution <WxH>` requests an explicit output resolution such as `1920x1080` from supported video models
 - **Cloudflare AI Gateway** - `AI_CLI_GATEWAY=cloudflare` routes text, image, video, speech and transcription through provider-native Cloudflare endpoints
+- **Fal media support** - Cloudflare mode supports Fal image, video, speech, and transcription models with full IDs such as `fal/fal-ai/flux/schnell`
+
+### Improvements
+
+- **Cloudflare BYOK authentication** - Cloudflare mode requires an authenticated gateway and AI Gateway Run token, keeps provider keys in Cloudflare, and does not send local provider credentials
+
+### Bug Fixes
+
+- **Cloudflare media routing** - Fal queue requests, Replicate prediction polling, and provider-hosted Veo and OpenRouter video downloads stay on Cloudflare BYOK routes
+- **Provider schema compatibility** - Fal transcription defaults to accepted segment chunks and Replicate Flux 2 reference images use the current `input_images` field
 
 ## 0.4.3
 

@@ -1,3 +1,4 @@
+import { createFal } from "@ai-sdk/fal";
 import { createGoogle } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
 import {
@@ -7,10 +8,7 @@ import {
   readResponseWithSizeLimit,
   type FetchFunction,
 } from "@ai-sdk/provider-utils";
-import {
-  createReplicate,
-  type ReplicateProviderSettings,
-} from "@ai-sdk/replicate";
+import { createReplicate } from "@ai-sdk/replicate";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import {
   gateway as vercelGateway,
@@ -33,7 +31,8 @@ export type CloudflareProvider =
   | "openai"
   | "google"
   | "openrouter"
-  | "replicate";
+  | "replicate"
+  | "fal";
 
 export interface CloudflareGatewayConfig {
   accountId: string;
@@ -51,7 +50,12 @@ const EXPLICIT_PROVIDERS = new Set<CloudflareProvider>([
   "google",
   "openrouter",
   "replicate",
+  "fal",
 ]);
+
+// Provider SDKs require a credential even when Cloudflare supplies the real
+// provider key from BYOK. This value is removed before every gateway request.
+const CLOUDFLARE_BYOK_CREDENTIAL = "cloudflare-byok";
 
 /**
  * Keep upstream behavior unless Cloudflare is selected explicitly. This avoids
@@ -79,12 +83,19 @@ export function resolveCloudflareGatewayConfig(
   }
 
   const gatewayId = nonEmpty(env.CLOUDFLARE_AI_GATEWAY_ID) ?? "default";
-  const token = nonEmpty(env.CLOUDFLARE_API_TOKEN);
+  const token =
+    nonEmpty(env.CLOUDFLARE_AI_GATEWAY_TOKEN) ??
+    nonEmpty(env.CLOUDFLARE_API_TOKEN);
+  if (!token) {
+    throw new Error(
+      "CLOUDFLARE_AI_GATEWAY_TOKEN or CLOUDFLARE_API_TOKEN is required when AI_CLI_GATEWAY=cloudflare"
+    );
+  }
 
   return {
     accountId,
     gatewayId,
-    headers: token ? { "cf-aig-authorization": `Bearer ${token}` } : {},
+    headers: { "cf-aig-authorization": `Bearer ${token}` },
   };
 }
 
@@ -102,6 +113,8 @@ export function cloudflareProviderBaseURL(
       return `${gatewayURL}/openrouter/v1`;
     case "replicate":
       return `${gatewayURL}/replicate`;
+    case "fal":
+      return `${gatewayURL}/fal`;
   }
 }
 
@@ -135,7 +148,11 @@ export function routeCloudflareModel(
     return { provider: "replicate", modelId };
   }
 
-  throw unsupportedProviderError(modality, modelId, ["openai", "google"]);
+  throw unsupportedProviderError(modality, modelId, [
+    "openai",
+    "google",
+    "fal",
+  ]);
 }
 
 export function languageModel(modelId: string): LanguageModel {
@@ -151,6 +168,12 @@ export function languageModel(modelId: string): LanguageModel {
     case "openrouter":
       return providers.openrouter(route.modelId);
     case "replicate":
+      throw unsupportedProviderError("language", modelId, [
+        "openai",
+        "google",
+        "openrouter",
+      ]);
+    case "fal":
       throw unsupportedProviderError("language", modelId, [
         "openai",
         "google",
@@ -173,6 +196,8 @@ export function imageModel(modelId: string): ImageModel {
       return providers.openrouter.imageModel(route.modelId);
     case "replicate":
       return providers.replicate.image(route.modelId);
+    case "fal":
+      return providers.fal.image(route.modelId);
   }
 }
 
@@ -190,34 +215,93 @@ export function videoModel(modelId: string): GatewayVideoModel {
       return providers.openrouter.videoModel(route.modelId);
     case "replicate":
       return providers.replicate.video(route.modelId);
+    case "fal":
+      return providers.fal.video(route.modelId);
     case "openai":
       throw unsupportedProviderError("video", modelId, [
         "google",
         "openrouter",
         "replicate",
+        "fal",
       ]);
   }
 }
 
-/**
- * Google returns the completed Veo file on its own API origin, outside the
- * configured Cloudflare base URL. The stock adapter intentionally omits the
- * key on that cross-origin URL, so provide a header-authenticated downloader.
- */
+/** Route provider-hosted video results back through Cloudflare BYOK. */
 export function videoDownload(modelId: string) {
   if (resolveGatewayBackend() !== "cloudflare") return undefined;
 
   const route = routeCloudflareModel(modelId, "video");
-  if (route.provider !== "google") return undefined;
-
-  const apiKey =
-    nonEmpty(process.env.GEMINI_API_KEY) ??
-    nonEmpty(process.env.GOOGLE_GENERATIVE_AI_API_KEY);
-  return apiKey ? createGoogleVideoDownload(apiKey) : undefined;
+  const config = resolveCloudflareGatewayConfig();
+  switch (route.provider) {
+    case "google":
+      return createCloudflareGoogleVideoDownload(
+        cloudflareProviderBaseURL("google", config),
+        config.headers
+      );
+    case "openrouter":
+      return createCloudflareOpenRouterVideoDownload(
+        cloudflareProviderBaseURL("openrouter", config),
+        config.headers
+      );
+    default:
+      return undefined;
+  }
 }
 
-export function createGoogleVideoDownload(
-  apiKey: string,
+export function createCloudflareGoogleVideoDownload(
+  baseURL: string,
+  gatewayHeaders: Record<string, string>,
+  fetchFunction?: FetchFunction
+) {
+  return createCloudflareProviderVideoDownload(
+    baseURL,
+    gatewayHeaders,
+    (url) => {
+      const isGoogleFileURL =
+        url.protocol === "https:" &&
+        url.hostname === "generativelanguage.googleapis.com" &&
+        (url.pathname === "/v1beta" || url.pathname.startsWith("/v1beta/"));
+      if (!isGoogleFileURL) return undefined;
+
+      const gatewayURL = new URL(
+        `${baseURL}${url.pathname.slice("/v1beta".length)}${url.search}`
+      );
+      // The Google SDK can append a provider key to its file URL.
+      gatewayURL.searchParams.delete("key");
+      return gatewayURL;
+    },
+    fetchFunction
+  );
+}
+
+export function createCloudflareOpenRouterVideoDownload(
+  baseURL: string,
+  gatewayHeaders: Record<string, string>,
+  fetchFunction?: FetchFunction
+) {
+  return createCloudflareProviderVideoDownload(
+    baseURL,
+    gatewayHeaders,
+    (url) => {
+      const isOpenRouterVideoURL =
+        url.protocol === "https:" &&
+        url.host === "openrouter.ai" &&
+        /^\/api\/v1\/videos\/[^/]+\/content$/.test(url.pathname);
+      return isOpenRouterVideoURL
+        ? new URL(
+            `${baseURL}${url.pathname.slice("/api/v1".length)}${url.search}`
+          )
+        : undefined;
+    },
+    fetchFunction
+  );
+}
+
+function createCloudflareProviderVideoDownload(
+  baseURL: string,
+  gatewayHeaders: Record<string, string>,
+  mapToGatewayURL: (url: URL) => URL | undefined,
   fetchFunction?: FetchFunction
 ) {
   return async ({
@@ -227,15 +311,17 @@ export function createGoogleVideoDownload(
     url: URL;
     abortSignal?: AbortSignal;
   }): Promise<{ data: Uint8Array; mediaType: string | undefined }> => {
-    const urlText = url.toString();
-    const isGoogleFileURL =
-      url.protocol === "https:" &&
-      url.hostname === "generativelanguage.googleapis.com";
+    const gatewayURL = mapToGatewayURL(url);
+    const downloadURL = gatewayURL ?? url;
+    const urlText = downloadURL.toString();
     const response = await fetchWithValidatedRedirects({
       url: urlText,
-      headers: isGoogleFileURL ? { "x-goog-api-key": apiKey } : undefined,
+      headers: gatewayURL
+        ? cloudflareGatewayHeaders(gatewayHeaders)
+        : undefined,
       abortSignal,
       ...(fetchFunction ? { fetch: fetchFunction } : {}),
+      trustedOrigin: baseURL,
     });
 
     if (!response.ok) {
@@ -265,9 +351,15 @@ export function speechModel(modelId: string): SpeechModel {
       return providers.openai.speech(route.modelId);
     case "google":
       return providers.google.speech(route.modelId);
+    case "fal":
+      return providers.fal.speech(route.modelId);
     case "openrouter":
     case "replicate":
-      throw unsupportedProviderError("speech", modelId, ["openai", "google"]);
+      throw unsupportedProviderError("speech", modelId, [
+        "openai",
+        "google",
+        "fal",
+      ]);
   }
 }
 
@@ -282,53 +374,83 @@ export function transcriptionModel(modelId: string): TranscriptionModel {
       return providers.openai.transcription(route.modelId);
     case "google":
       return providers.google.transcription(route.modelId);
+    case "fal":
+      // The Fal transcription adapter inserts `fal-ai/` itself.
+      return withCloudflareFalTranscriptionDefaults(
+        providers.fal.transcription(route.modelId.replace(/^fal-ai\//, ""))
+      );
     case "openrouter":
     case "replicate":
       throw unsupportedProviderError("transcription", modelId, [
         "openai",
         "google",
+        "fal",
       ]);
   }
+}
+
+type FalTranscriptionModel = ReturnType<
+  ReturnType<typeof createFal>["transcription"]
+>;
+
+/**
+ * Fal's current transcription API accepts segment chunks by default, while
+ * the SDK emits the older word default when no Fal provider options exist.
+ */
+export function withCloudflareFalTranscriptionDefaults(
+  model: FalTranscriptionModel
+): FalTranscriptionModel {
+  const doGenerate = model.doGenerate.bind(model);
+  model.doGenerate = (options) =>
+    doGenerate({
+      ...options,
+      providerOptions: {
+        ...options.providerOptions,
+        fal: {
+          chunkLevel: "segment",
+          ...options.providerOptions?.fal,
+        },
+      },
+    });
+  return model;
 }
 
 function createCloudflareProviders(env: Environment = process.env) {
   const config = resolveCloudflareGatewayConfig(env);
   const replicateBaseURL = cloudflareProviderBaseURL("replicate", config);
+  const falBaseURL = cloudflareProviderBaseURL("fal", config);
+  const byokFetch = createCloudflareByokFetch();
 
   return {
     openai: createOpenAI({
+      apiKey: CLOUDFLARE_BYOK_CREDENTIAL,
       baseURL: cloudflareProviderBaseURL("openai", config),
       headers: config.headers,
-      ...(nonEmpty(env.OPENAI_API_KEY)
-        ? { apiKey: nonEmpty(env.OPENAI_API_KEY) }
-        : {}),
+      fetch: byokFetch,
     }),
     google: createGoogle({
+      apiKey: CLOUDFLARE_BYOK_CREDENTIAL,
       baseURL: cloudflareProviderBaseURL("google", config),
       headers: config.headers,
-      ...((nonEmpty(env.GEMINI_API_KEY) ??
-      nonEmpty(env.GOOGLE_GENERATIVE_AI_API_KEY))
-        ? {
-            apiKey:
-              nonEmpty(env.GEMINI_API_KEY) ??
-              nonEmpty(env.GOOGLE_GENERATIVE_AI_API_KEY),
-          }
-        : {}),
+      fetch: byokFetch,
     }),
     openrouter: createOpenRouter({
+      apiKey: CLOUDFLARE_BYOK_CREDENTIAL,
       baseURL: cloudflareProviderBaseURL("openrouter", config),
       headers: config.headers,
-      ...(nonEmpty(env.OPENROUTER_API_KEY)
-        ? { apiKey: nonEmpty(env.OPENROUTER_API_KEY) }
-        : {}),
+      fetch: byokFetch,
     }),
     replicate: createReplicate({
+      apiToken: CLOUDFLARE_BYOK_CREDENTIAL,
       baseURL: replicateBaseURL,
       headers: config.headers,
       fetch: createCloudflareReplicateFetch(replicateBaseURL),
-      ...(nonEmpty(env.REPLICATE_API_TOKEN)
-        ? { apiToken: nonEmpty(env.REPLICATE_API_TOKEN) }
-        : {}),
+    }),
+    fal: createFal({
+      apiKey: CLOUDFLARE_BYOK_CREDENTIAL,
+      baseURL: falBaseURL,
+      headers: config.headers,
+      fetch: createCloudflareFalFetch(falBaseURL),
     }),
   };
 }
@@ -340,10 +462,10 @@ function assertProviderSupports(
 ): void {
   const supported: Record<GatewayModality, CloudflareProvider[]> = {
     language: ["openai", "google", "openrouter"],
-    image: ["openai", "google", "openrouter", "replicate"],
-    video: ["google", "openrouter", "replicate"],
-    speech: ["openai", "google"],
-    transcription: ["openai", "google"],
+    image: ["openai", "google", "openrouter", "replicate", "fal"],
+    video: ["google", "openrouter", "replicate", "fal"],
+    speech: ["openai", "google", "fal"],
+    transcription: ["openai", "google", "fal"],
   };
   if (!supported[modality].includes(provider)) {
     throw unsupportedProviderError(
@@ -372,7 +494,96 @@ function nonEmpty(value: string | undefined): string | undefined {
   return trimmed || undefined;
 }
 
-type ProviderFetch = NonNullable<ReplicateProviderSettings["fetch"]>;
+type ProviderFetch = FetchFunction;
+
+/**
+ * Cloudflare injects the stored provider key. Provider SDK credentials are
+ * placeholders only and must never reach the gateway.
+ */
+export function createCloudflareByokFetch(
+  fetchFunction: ProviderFetch = globalThis.fetch
+): ProviderFetch {
+  const cloudflareFetch = async (
+    input: Parameters<ProviderFetch>[0],
+    init?: Parameters<ProviderFetch>[1]
+  ): Promise<Response> => {
+    const url = requestURL(input);
+    if (!isCloudflareGatewayURL(url)) return fetchFunction(input, init);
+
+    return fetchFunction(input, {
+      ...init,
+      headers: cloudflareGatewayHeaders(requestHeaders(input, init)),
+    });
+  };
+
+  return Object.assign(cloudflareFetch, {
+    preconnect: fetchFunction.preconnect,
+  });
+}
+
+/**
+ * Fal's image adapter honors baseURL, while its speech, transcription, and
+ * video adapters use absolute Fal URLs. Cloudflare's Fal route accepts those
+ * alternative targets in `x-fal-target-url` on the provider base endpoint.
+ */
+export function createCloudflareFalFetch(
+  baseURL: string,
+  fetchFunction: ProviderFetch = globalThis.fetch
+): ProviderFetch {
+  const byokFetch = createCloudflareByokFetch(fetchFunction);
+  const cloudflareFetch = async (
+    input: Parameters<ProviderFetch>[0],
+    init?: Parameters<ProviderFetch>[1]
+  ): Promise<Response> => {
+    const request = normalizeRequestInput(input, init);
+    const targetURL = request?.url ?? requestURL(input);
+    if (!isFalInferenceURL(targetURL)) return byokFetch(input, init);
+
+    const headers = request
+      ? new Headers(request.headers)
+      : requestHeaders(input, init);
+    headers.set("x-fal-target-url", targetURL);
+    if (request) {
+      return byokFetch(new Request(baseURL, request), { headers });
+    }
+    return byokFetch(baseURL, { ...init, headers });
+  };
+
+  return Object.assign(cloudflareFetch, {
+    preconnect: fetchFunction.preconnect,
+  });
+}
+
+function cloudflareGatewayHeaders(headers: HeadersInit): Headers {
+  const sanitized = new Headers(headers);
+  sanitized.delete("authorization");
+  sanitized.delete("x-goog-api-key");
+  return sanitized;
+}
+
+function isCloudflareGatewayURL(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return (
+      parsed.protocol === "https:" &&
+      parsed.hostname === "gateway.ai.cloudflare.com"
+    );
+  } catch {
+    return false;
+  }
+}
+
+function isFalInferenceURL(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return (
+      parsed.protocol === "https:" &&
+      (parsed.hostname === "fal.run" || parsed.hostname === "queue.fal.run")
+    );
+  } catch {
+    return false;
+  }
+}
 
 interface ReplicatePrediction {
   id: string;
@@ -394,13 +605,18 @@ export function createCloudflareReplicateFetch(
   fetchFunction: ProviderFetch = globalThis.fetch,
   pollIntervalMs = 1_000
 ): ProviderFetch {
+  const byokFetch = createCloudflareByokFetch(fetchFunction);
   const cloudflareFetch = async (
     input: Parameters<ProviderFetch>[0],
     init?: Parameters<ProviderFetch>[1]
   ): Promise<Response> => {
-    const url = requestURL(input);
-    const method = requestMethod(input, init);
-    const headers = requestHeaders(input, init);
+    const request = normalizeRequestInput(input, init);
+    const url = request?.url ?? requestURL(input);
+    const method = request?.method ?? requestMethod(input, init);
+    const headers = request
+      ? new Headers(request.headers)
+      : requestHeaders(input, init);
+    const signal = request?.signal ?? init?.signal;
     const shouldPoll =
       method === "POST" &&
       url.startsWith(`${baseURL}/`) &&
@@ -409,7 +625,27 @@ export function createCloudflareReplicateFetch(
 
     if (shouldPoll) headers.delete("prefer");
 
-    let response = await fetchFunction(input, { ...init, headers });
+    const sourceBody =
+      request && request.body && isReplicateFlux2ModelURL(url, baseURL)
+        ? await request.clone().text()
+        : init?.body;
+    const body = rewriteReplicateFlux2InputImages(
+      url,
+      baseURL,
+      method,
+      sourceBody
+    );
+    if (body !== sourceBody) headers.delete("content-length");
+    const outboundInput = request
+      ? new Request(request, {
+          headers,
+          ...(body === undefined ? {} : { body }),
+        })
+      : input;
+    let response = await byokFetch(
+      outboundInput,
+      request ? undefined : { ...init, body, headers }
+    );
     if (!response.ok) return response;
 
     // Output files use this provider fetch too. Leave CDN bytes untouched.
@@ -421,13 +657,13 @@ export function createCloudflareReplicateFetch(
     prediction = rewriteReplicatePredictionURL(prediction, baseURL);
 
     while (shouldPoll && !isTerminalPrediction(prediction.status)) {
-      await pollDelay(pollIntervalMs, init?.signal);
-      response = await fetchFunction(
+      await pollDelay(pollIntervalMs, signal);
+      response = await byokFetch(
         `${baseURL}/predictions/${encodeURIComponent(prediction.id)}`,
         {
           method: "GET",
           headers,
-          signal: init?.signal,
+          signal,
         }
       );
       if (!response.ok) return response;
@@ -467,6 +703,13 @@ function requestURL(input: Parameters<ProviderFetch>[0]): string {
   return input.url;
 }
 
+function normalizeRequestInput(
+  input: Parameters<ProviderFetch>[0],
+  init?: Parameters<ProviderFetch>[1]
+): Request | undefined {
+  return input instanceof Request ? new Request(input, init) : undefined;
+}
+
 function requestMethod(
   input: Parameters<ProviderFetch>[0],
   init?: Parameters<ProviderFetch>[1]
@@ -484,6 +727,65 @@ function requestHeaders(
   const overrides = new Headers(init?.headers);
   overrides.forEach((value, key) => headers.set(key, value));
   return headers;
+}
+
+/** Adapt the SDK's former numbered Flux 2 fields to Replicate's array schema. */
+function rewriteReplicateFlux2InputImages(
+  url: string,
+  baseURL: string,
+  method: string,
+  body: BodyInit | null | undefined
+): BodyInit | null | undefined {
+  if (
+    method !== "POST" ||
+    typeof body !== "string" ||
+    !isReplicateFlux2ModelURL(url, baseURL)
+  ) {
+    return body;
+  }
+
+  try {
+    const payload: unknown = JSON.parse(body);
+    if (typeof payload !== "object" || payload === null) return body;
+    const inputValue = (payload as { input?: unknown }).input;
+    if (typeof inputValue !== "object" || inputValue === null) return body;
+
+    const input = inputValue as Record<string, unknown>;
+    const numberedImages = Object.entries(input)
+      .flatMap(([key, value]) => {
+        const match = /^input_image(?:_(\d+))?$/.exec(key);
+        return match
+          ? [{ key, position: match[1] ? Number(match[1]) : 1, value }]
+          : [];
+      })
+      .sort((left, right) => left.position - right.position);
+    if (numberedImages.length === 0) return body;
+
+    const rewrittenInput = { ...input };
+    for (const image of numberedImages) delete rewrittenInput[image.key];
+    rewrittenInput.input_images = numberedImages.map((image) => image.value);
+
+    return JSON.stringify({ ...payload, input: rewrittenInput });
+  } catch {
+    return body;
+  }
+}
+
+function isReplicateFlux2ModelURL(url: string, baseURL: string): boolean {
+  try {
+    const parsedURL = new URL(url);
+    const parsedBaseURL = new URL(baseURL);
+    const basePath = parsedBaseURL.pathname.replace(/\/$/, "");
+    const modelPathPrefix = `${basePath}/models/black-forest-labs/flux-2-`;
+    const modelPath = parsedURL.pathname.slice(modelPathPrefix.length);
+    return (
+      parsedURL.origin === parsedBaseURL.origin &&
+      parsedURL.pathname.startsWith(modelPathPrefix) &&
+      /^[^/]+\/predictions$/.test(modelPath)
+    );
+  } catch {
+    return false;
+  }
 }
 
 async function readReplicatePrediction(

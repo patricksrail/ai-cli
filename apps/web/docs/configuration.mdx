@@ -21,20 +21,13 @@ ai-cli is configured entirely through environment variables. There is no config 
   <Property name="CLOUDFLARE_AI_GATEWAY_ID" type="string">
     Cloudflare AI Gateway name. Defaults to `default`.
   </Property>
+  <Property name="CLOUDFLARE_AI_GATEWAY_TOKEN" type="string">
+    Preferred Cloudflare authentication token. Required in Cloudflare mode and
+    must grant AI Gateway Run.
+  </Property>
   <Property name="CLOUDFLARE_API_TOKEN" type="string">
-    Gateway authentication token. Required only when the selected Cloudflare gateway has authentication enabled.
-  </Property>
-  <Property name="OPENAI_API_KEY" type="string">
-    Provider-specific key (or other provider keys like `ANTHROPIC_API_KEY`).
-  </Property>
-  <Property name="GEMINI_API_KEY" type="string">
-    Google AI Studio provider key for Cloudflare mode.
-  </Property>
-  <Property name="OPENROUTER_API_KEY" type="string">
-    OpenRouter provider key for Cloudflare mode.
-  </Property>
-  <Property name="REPLICATE_API_TOKEN" type="string">
-    Replicate provider token for Cloudflare mode.
+    Fallback Cloudflare token when `CLOUDFLARE_AI_GATEWAY_TOKEN` is unset. It
+    must grant AI Gateway Run.
   </Property>
   <Property name="AI_CLI_TEXT_MODEL" type="string">
     Default text model. Overrides `openai/gpt-5.5`.
@@ -70,6 +63,7 @@ ai-cli is configured entirely through environment variables. There is no config 
 - `-m` flag always takes priority over `AI_CLI_*_MODEL` env vars.
 - `-o` flag always takes priority over `AI_CLI_OUTPUT_DIR`.
 - `--no-preview` takes priority over `AI_CLI_PREVIEW`.
+- `CLOUDFLARE_AI_GATEWAY_TOKEN` takes priority over `CLOUDFLARE_API_TOKEN`.
 
 ## Example shell profile
 
@@ -87,8 +81,7 @@ Cloudflare example:
 export AI_CLI_GATEWAY="cloudflare"
 export CLOUDFLARE_ACCOUNT_ID="your-account-id"
 export CLOUDFLARE_AI_GATEWAY_ID="default"
-export OPENAI_API_KEY="your-openai-key"
-export GEMINI_API_KEY="your-gemini-key"
-export OPENROUTER_API_KEY="your-openrouter-key"
-export REPLICATE_API_TOKEN="your-replicate-token"
+export CLOUDFLARE_AI_GATEWAY_TOKEN="your-ai-gateway-run-token"
 ```
+
+Cloudflare mode requires an [authenticated gateway](https://developers.cloudflare.com/ai-gateway/configuration/authentication/). Store OpenAI, Google AI Studio, OpenRouter, Replicate, and Fal credentials in the gateway's **Provider Keys** page with the `default` alias. ai-cli does not read or forward local provider keys or provider authorization headers in this mode.

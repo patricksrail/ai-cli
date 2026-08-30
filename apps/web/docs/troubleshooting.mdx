@@ -4,24 +4,44 @@ description: Common issues and how to resolve them.
 order: 8
 ---
 
-## Missing API key
+## Missing Vercel API key
 
 ```
 Error: No API key found
 ```
 
-Set one of the following environment variables:
+Set the Vercel AI Gateway key:
 
 ```bash
-export AI_GATEWAY_API_KEY="your-key"   # recommended — access to all models
-export OPENAI_API_KEY="sk-..."         # OpenAI models only
+export AI_GATEWAY_API_KEY="your-key"
 ```
 
 Add the export to your shell profile (`~/.zshrc`, `~/.bashrc`) to persist across sessions.
 
-For Cloudflare mode, set `AI_CLI_GATEWAY=cloudflare`, `CLOUDFLARE_ACCOUNT_ID`, and the provider key required by the model. `CLOUDFLARE_AI_GATEWAY_ID` defaults to `default`. Set `CLOUDFLARE_API_TOKEN` only when gateway authentication is enabled.
+## Cloudflare authentication or provider errors
 
-Nested provider IDs keep both provider and creator, for example `openrouter/anthropic/claude-sonnet-4` or `replicate/prunaai/p-video`.
+Cloudflare mode requires an authenticated gateway and an AI Gateway Run token. A missing token produces:
+
+```
+Error: CLOUDFLARE_AI_GATEWAY_TOKEN or CLOUDFLARE_API_TOKEN is required when AI_CLI_GATEWAY=cloudflare
+```
+
+Set the preferred token variable:
+
+```bash
+export AI_CLI_GATEWAY="cloudflare"
+export CLOUDFLARE_ACCOUNT_ID="your-account-id"
+export CLOUDFLARE_AI_GATEWAY_ID="default"
+export CLOUDFLARE_AI_GATEWAY_TOKEN="your-ai-gateway-run-token"
+```
+
+`CLOUDFLARE_API_TOKEN` is a fallback when `CLOUDFLARE_AI_GATEWAY_TOKEN` is unset. Either token must grant **AI Gateway Run**.
+
+For an upstream `401` or `403`, confirm that the provider credential is active under the gateway's **Provider Keys** page and uses the `default` alias. Do not add a local provider API key: Cloudflare mode strips provider authorization and relies on BYOK.
+
+Nested provider IDs keep the route prefix and creator or owner, for example `openrouter/anthropic/claude-sonnet-4`, `replicate/prunaai/p-video`, or `fal/fal-ai/flux/schnell`.
+
+A quota, billing, or credit error comes from the stored provider account. Add credit or enable billing there; changing the Cloudflare token does not change the provider balance.
 
 ## Invalid model ID
 
@@ -35,12 +55,12 @@ AI Gateway model IDs are sent as HTTP request metadata and use forms such as `op
 
 Requests are aborted if they exceed the per-command timeout:
 
-| Command | Timeout |
-| --- | --- |
-| `text` | 120 seconds |
-| `image` | 300 seconds |
-| `video` | 300 seconds |
-| `audio speak` | 120 seconds |
+| Command            | Timeout     |
+| ------------------ | ----------- |
+| `text`             | 120 seconds |
+| `image`            | 300 seconds |
+| `video`            | 300 seconds |
+| `audio speak`      | 120 seconds |
 | `audio transcribe` | 120 seconds |
 
 Use `--timeout <seconds>` to allow a longer request without changing models. The value must be a positive integer. For example:

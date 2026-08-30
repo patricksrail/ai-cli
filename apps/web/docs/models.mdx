@@ -8,13 +8,13 @@ order: 4
 
 Each command type has a default model used when `-m` is not specified:
 
-| Type | Default | Env override |
-| --- | --- | --- |
-| text | `openai/gpt-5.5` | `AI_CLI_TEXT_MODEL` |
-| image | `openai/gpt-image-2` | `AI_CLI_IMAGE_MODEL` |
-| video | `bytedance/seedance-2.0` | `AI_CLI_VIDEO_MODEL` |
-| speech | `openai/tts-1` | `AI_CLI_SPEECH_MODEL` |
-| transcription | `openai/whisper-1` | `AI_CLI_TRANSCRIPTION_MODEL` |
+| Type          | Default                  | Env override                 |
+| ------------- | ------------------------ | ---------------------------- |
+| text          | `openai/gpt-5.5`         | `AI_CLI_TEXT_MODEL`          |
+| image         | `openai/gpt-image-2`     | `AI_CLI_IMAGE_MODEL`         |
+| video         | `bytedance/seedance-2.0` | `AI_CLI_VIDEO_MODEL`         |
+| speech        | `openai/tts-1`           | `AI_CLI_SPEECH_MODEL`        |
+| transcription | `openai/whisper-1`       | `AI_CLI_TRANSCRIPTION_MODEL` |
 
 The `-m` flag always takes priority over environment variables.
 
@@ -40,14 +40,29 @@ Model IDs must contain printable ASCII characters without spaces. This applies t
 
 ### Cloudflare provider routing
 
-With `AI_CLI_GATEWAY=cloudflare`, `openai/...` and `google/...` use their provider-native Cloudflare routes. Prefix nested provider model IDs explicitly when needed:
+With `AI_CLI_GATEWAY=cloudflare`, the first path segment selects a provider-native Cloudflare route:
+
+| Provider prefix | Text | Image | Video | Speech | Transcription |
+| --------------- | ---: | ----: | ----: | -----: | ------------: |
+| `openai/`       |  Yes |   Yes |     — |    Yes |           Yes |
+| `google/`       |  Yes |   Yes |   Yes |    Yes |           Yes |
+| `openrouter/`   |  Yes |   Yes |   Yes |      — |             — |
+| `replicate/`    |    — |   Yes |   Yes |      — |             — |
+| `fal/`          |    — |   Yes |   Yes |    Yes |           Yes |
+
+The table describes ai-cli adapter support; individual models can support fewer inputs or options. Use complete provider-prefixed IDs when a provider contains a nested creator or owner:
 
 ```bash
 ai text -m "openrouter/anthropic/claude-sonnet-4" "hello"
+ai image -m "replicate/black-forest-labs/flux-2-pro" -i reference.png "restyle this"
 ai video -m "replicate/prunaai/p-video" "a paper airplane"
+ai image -m "fal/fal-ai/flux/schnell" "a paper-cut fox"
+ai video -m "fal/fal-ai/wan/v2.2-5b/image-to-video" -i input.png "animate this"
+ai audio speak -m "fal/fal-ai/minimax/speech-02-turbo" "hello"
+ai audio transcribe -m "fal/fal-ai/wizper" recording.mp3
 ```
 
-Other creator IDs route through OpenRouter for text and Replicate for image/video while preserving the complete ID. Speech and transcription currently require an OpenAI or Google model.
+Other creator IDs route through OpenRouter for text and Replicate for image/video while preserving the complete ID. Speech and transcription require an explicit `openai/`, `google/`, or `fal/` prefix.
 
 The `models` command and short-name expansion still use Vercel's public model catalog. Use a full provider-prefixed ID when Cloudflare or a provider account exposes a different set of models.
 
@@ -113,7 +128,10 @@ Latency (time to first token) and throughput are p50 over the last hour; uptime 
 Models use [Vercel AI Gateway](https://vercel.com/docs/ai-gateway) by default. Cloudflare mode sends supported models through [Cloudflare's provider-native routes](https://developers.cloudflare.com/ai-gateway/usage/providers/).
 
 <Cards>
-  <Card title="OpenAI" description="GPT-5.5, GPT-4.1, GPT Image 2, TTS, Whisper" />
+  <Card
+    title="OpenAI"
+    description="GPT-5.5, GPT-4.1, GPT Image 2, TTS, Whisper"
+  />
   <Card title="Anthropic" description="Claude Sonnet 4" />
   <Card title="Google" description="Gemini 2.5 Pro, Imagen 4, Veo 3" />
   <Card title="xAI" description="Grok 3, Grok Imagine" />

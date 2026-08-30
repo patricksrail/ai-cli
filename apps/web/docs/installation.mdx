@@ -24,10 +24,8 @@ Vercel AI Gateway remains the default. Set its key as before:
 
 <Properties>
   <Property name="AI_GATEWAY_API_KEY" type="string">
-    Vercel AI Gateway key. Provides access to all supported models through a single key.
-  </Property>
-  <Property name="OPENAI_API_KEY" type="string">
-    Provider-specific key. Use if you only need OpenAI models.
+    Vercel AI Gateway key. Provides access to all supported models through a
+    single key.
   </Property>
 </Properties>
 
@@ -39,14 +37,19 @@ export AI_GATEWAY_API_KEY="your-key"
 
 To use Cloudflare AI Gateway provider-native routing instead:
 
+1. [Enable gateway authentication](https://developers.cloudflare.com/ai-gateway/configuration/authentication/).
+2. Add each provider credential under **Provider Keys** with the `default` alias. This is Cloudflare's [BYOK flow](https://developers.cloudflare.com/ai-gateway/configuration/bring-your-own-keys/).
+3. Create a Cloudflare token with **AI Gateway Run** permission.
+4. Configure ai-cli:
+
 ```bash
 export AI_CLI_GATEWAY="cloudflare"
 export CLOUDFLARE_ACCOUNT_ID="your-account-id"
 export CLOUDFLARE_AI_GATEWAY_ID="default"
-export OPENAI_API_KEY="your-openai-key"
+export CLOUDFLARE_AI_GATEWAY_TOKEN="your-ai-gateway-run-token"
 ```
 
-Add `GEMINI_API_KEY`, `OPENROUTER_API_KEY`, or `REPLICATE_API_TOKEN` for those providers. If the Cloudflare gateway has authentication enabled, also set `CLOUDFLARE_API_TOKEN`.
+If `CLOUDFLARE_AI_GATEWAY_TOKEN` is unset, ai-cli falls back to `CLOUDFLARE_API_TOKEN`; that token must also grant **AI Gateway Run**. Do not export provider keys for Cloudflare mode. ai-cli removes provider authorization headers and Cloudflare injects the stored BYOK key.
 
 Add this to your shell profile (`~/.zshrc`, `~/.bashrc`, etc.) to persist across sessions.
 
@@ -65,6 +68,7 @@ If you see generated text, you're ready.
     ai-cli runs with Bun. Install from bun.sh.
   </Property>
   <Property name="API key" type="string" required>
-    A Vercel AI Gateway key, or Cloudflare configuration plus at least one provider key.
+    A Vercel AI Gateway key, or an authenticated Cloudflare gateway with a Run
+    token and provider keys stored through BYOK.
   </Property>
 </Properties>

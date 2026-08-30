@@ -43,6 +43,7 @@
     "prepack": "bun run typecheck && bun run build"
   },
   "dependencies": {
+    "@ai-sdk/fal": "3.0.34",
     "@ai-sdk/google": "4.0.57",
     "@ai-sdk/openai": "4.0.51",
     "@ai-sdk/provider-utils": "5.0.33",
