@@ -4,6 +4,7 @@ date_updated: 2026-08-30
 summary: Development instructions for Patrick's Cloudflare BYOK fork of ai-cli.
 related:
   - HANDOFF.md
+  - docs/upstream-sync.md
   - https://github.com/patricksrail/ai-cli
   - https://github.com/vercel-labs/ai-cli
 ---
@@ -17,6 +18,7 @@ related:
 - Provider credentials live in Cloudflare Provider Keys under the `default` alias. The CLI must not read, persist, or forward local provider keys in Cloudflare mode.
 - Cloudflare routing is implemented in `packages/ai-cli/src/lib/gateway.ts` and tested in `packages/ai-cli/src/lib/gateway.test.ts`. Keep fork policy concentrated there so upstream merges stay small.
 - Read `HANDOFF.md` before changing provider authentication or media routing.
+- Follow [`docs/upstream-sync.md`](docs/upstream-sync.md) when bringing changes from `vercel-labs/ai-cli` into this fork.
 
 ## Local Configuration and Use
 
@@ -91,4 +93,4 @@ This runs `turbo run typecheck` across all workspaces and ensures no type errors
 
 ## Deployment
 
-This repository builds a local/npm CLI; it does not deploy a Worker. Run `bun run build`, link the package for local use, and push fork changes to `origin`. Fetch and merge upstream changes from `upstream` without rewriting Patrick's fork commits.
+This repository builds a local/npm CLI; it does not deploy a Worker. Run `bun run build`, link the package for local use, and push fork changes to `origin`. Use the [upstream-sync runbook](docs/upstream-sync.md) to merge source updates without rewriting Patrick's fork commits.

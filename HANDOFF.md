@@ -4,6 +4,7 @@ date_updated: 2026-08-30
 summary: Verified Cloudflare BYOK account state, provider tests, costs, limitations, and maintenance notes for the ai-cli fork.
 related:
   - CLAUDE.md
+  - docs/upstream-sync.md
   - LEARNINGS.md
   - https://developers.cloudflare.com/ai-gateway/configuration/bring-your-own-keys/
 ---
@@ -12,7 +13,7 @@ related:
 
 ## Outcome
 
-This repository is a GitHub fork of `vercel-labs/ai-cli` at `patricksrail/ai-cli`. `origin` points to Patrick's fork and `upstream` points to Vercel Labs. Before this default-and-documentation batch, `main` was at `babf4fb`, two commits ahead of upstream `4300c94`. The fork preserves the upstream command layer and makes Cloudflare AI Gateway the default backend; Vercel remains available with `AI_CLI_GATEWAY=vercel`.
+This repository is a GitHub fork of `vercel-labs/ai-cli` at `patricksrail/ai-cli`. `origin` points to Patrick's fork and `upstream` points to Vercel Labs. Before this default-and-documentation batch, `main` was at `babf4fb`, two commits ahead of upstream `4300c94`; the Cloudflare-default feature baseline ends at `79bdc31`, three commits ahead of that upstream commit. The fork preserves the upstream command layer and makes Cloudflare AI Gateway the default backend; Vercel remains available with `AI_CLI_GATEWAY=vercel`. Follow `docs/upstream-sync.md` for future source updates.
 
 The CLI was tested as a built command-line application, not only through unit tests. Live acceptance commands explicitly unset all known provider credential environment variables and supplied only Cloudflare account/gateway authentication.
 

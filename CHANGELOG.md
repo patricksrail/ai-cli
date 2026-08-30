@@ -13,6 +13,7 @@
 - **Cloudflare BYOK authentication** - Cloudflare mode requires an authenticated gateway and AI Gateway Run token, keeps provider keys in Cloudflare, and does not send local provider credentials
 - **Working fork defaults** - Default text, image, video, speech, and transcription models now use live-tested OpenRouter, Fal, and Replicate BYOK routes
 - **Fork documentation** - README, project instructions, and handoff notes document upstream tracking, account-side configuration, tested providers, and known billing limits
+- **Upstream sync runbook** - Fork instructions link to a merge, verification, live smoke-test, and push procedure for future `vercel-labs/ai-cli` updates
 
 ### Bug Fixes
 
