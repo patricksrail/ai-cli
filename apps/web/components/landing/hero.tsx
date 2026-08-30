@@ -31,7 +31,7 @@ export function Hero() {
         >
           <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.03] px-5 py-3 font-mono text-sm text-white/70">
             <span className="text-white/40">$</span>
-            <span>npm install -g ai-cli</span>
+            <span>gh repo clone patricksrail/ai-cli</span>
           </div>
         </div>
       </div>

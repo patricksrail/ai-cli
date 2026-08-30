@@ -5,12 +5,14 @@
 ### New Features
 
 - **Video resolution** - `ai video --resolution <WxH>` requests an explicit output resolution such as `1920x1080` from supported video models
-- **Cloudflare AI Gateway** - `AI_CLI_GATEWAY=cloudflare` routes text, image, video, speech and transcription through provider-native Cloudflare endpoints
+- **Cloudflare AI Gateway default** - This fork routes text, image, video, speech and transcription through the authenticated `ai-cli` Cloudflare gateway by default; set `AI_CLI_GATEWAY=vercel` for upstream Vercel routing
 - **Fal media support** - Cloudflare mode supports Fal image, video, speech, and transcription models with full IDs such as `fal/fal-ai/flux/schnell`
 
 ### Improvements
 
 - **Cloudflare BYOK authentication** - Cloudflare mode requires an authenticated gateway and AI Gateway Run token, keeps provider keys in Cloudflare, and does not send local provider credentials
+- **Working fork defaults** - Default text, image, video, speech, and transcription models now use live-tested OpenRouter, Fal, and Replicate BYOK routes
+- **Fork documentation** - README, project instructions, and handoff notes document upstream tracking, account-side configuration, tested providers, and known billing limits
 
 ### Bug Fixes
 

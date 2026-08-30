@@ -1,11 +1,13 @@
 export type Modality = "text" | "image" | "video" | "speech" | "transcription";
 
 const DEFAULTS: Record<Modality, string> = {
-  text: process.env.AI_CLI_TEXT_MODEL ?? "openai/gpt-5.5",
-  image: process.env.AI_CLI_IMAGE_MODEL ?? "openai/gpt-image-2",
-  video: process.env.AI_CLI_VIDEO_MODEL ?? "bytedance/seedance-2.0",
-  speech: process.env.AI_CLI_SPEECH_MODEL ?? "openai/tts-1",
-  transcription: process.env.AI_CLI_TRANSCRIPTION_MODEL ?? "openai/whisper-1",
+  text:
+    process.env.AI_CLI_TEXT_MODEL ?? "openrouter/google/gemini-2.5-flash-lite",
+  image: process.env.AI_CLI_IMAGE_MODEL ?? "fal/fal-ai/flux/schnell",
+  video: process.env.AI_CLI_VIDEO_MODEL ?? "replicate/prunaai/p-video",
+  speech:
+    process.env.AI_CLI_SPEECH_MODEL ?? "fal/fal-ai/minimax/speech-02-turbo",
+  transcription: process.env.AI_CLI_TRANSCRIPTION_MODEL ?? "fal/fal-ai/wizper",
 };
 
 const GATEWAY_MODELS_URL = "https://ai-gateway.vercel.sh/v1/models";

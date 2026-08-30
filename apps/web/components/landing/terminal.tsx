@@ -32,8 +32,8 @@ const scenes: readonly scene[] = [
     data: [
       { tone: "input", text: '$ ai image "a dragon" | ai video "animate this"' },
       { tone: "dim", text: "" },
-      { tone: "dim", text: "Generating image with openai/gpt-image-2" },
-      { tone: "ok", text: "Generating video with bytedance/seedance-2.0" },
+      { tone: "dim", text: "Generating image with fal/fal-ai/flux/schnell" },
+      { tone: "ok", text: "Generating video with replicate/prunaai/p-video" },
       { tone: "plain", text: "" },
       { tone: "ok", text: "Saved to /Users/you/resp_video.mp4 (12.4s)" },
     ],
@@ -43,7 +43,7 @@ const scenes: readonly scene[] = [
     data: [
       { tone: "input", text: "$ git diff | ai text \"explain these changes\"" },
       { tone: "dim", text: "" },
-      { tone: "dim", text: "Generating text with openai/gpt-5.5" },
+      { tone: "dim", text: "Generating text with openrouter/google/gemini-2.5-flash-lite" },
       { tone: "plain", text: "" },
       { tone: "plain", text: "These changes refactor the auth module:" },
       { tone: "plain", text: "" },
@@ -59,7 +59,7 @@ const scenes: readonly scene[] = [
     data: [
       { tone: "input", text: '$ ai audio speak "Thanks for trying ai-cli"' },
       { tone: "dim", text: "" },
-      { tone: "dim", text: "Generating audio with openai/tts-1" },
+      { tone: "dim", text: "Generating audio with fal/fal-ai/minimax/speech-02-turbo" },
       { tone: "plain", text: "" },
       { tone: "ok", text: "Saved to /Users/you/resp_8j3k2m1n.mp3 (1.8s)" },
       { tone: "muted", text: "Playing audio  ▁▂▃▅▇▆▄▃▂▁" },

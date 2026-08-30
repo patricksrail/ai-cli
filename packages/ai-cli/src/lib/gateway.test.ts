@@ -86,15 +86,12 @@ afterEach(() => {
 });
 
 describe("resolveGatewayBackend", () => {
-  test("keeps Vercel as the default and accepts an explicit Vercel value", () => {
-    expect(resolveGatewayBackend({})).toBe("vercel");
-    expect(resolveGatewayBackend({ AI_CLI_GATEWAY: "vercel" })).toBe("vercel");
-  });
-
-  test("uses Cloudflare only when selected explicitly", () => {
+  test("defaults to Cloudflare and keeps Vercel available explicitly", () => {
+    expect(resolveGatewayBackend({})).toBe("cloudflare");
     expect(resolveGatewayBackend({ AI_CLI_GATEWAY: " cloudflare " })).toBe(
       "cloudflare"
     );
+    expect(resolveGatewayBackend({ AI_CLI_GATEWAY: "vercel" })).toBe("vercel");
   });
 
   test("rejects unknown backends", () => {
@@ -118,6 +115,13 @@ describe("resolveCloudflareGatewayConfig", () => {
   });
 
   test("defaults the gateway id and adds gateway authorization", () => {
+    expect(
+      resolveCloudflareGatewayConfig({
+        CLOUDFLARE_ACCOUNT_ID: "account",
+        CLOUDFLARE_AI_GATEWAY_TOKEN: "run-token",
+      }).gatewayId
+    ).toBe("ai-cli");
+
     expect(
       resolveCloudflareGatewayConfig({
         CLOUDFLARE_ACCOUNT_ID: " account ",
@@ -658,8 +662,8 @@ describe("createCloudflareOpenRouterVideoDownload", () => {
 });
 
 describe("gateway model factories", () => {
-  test("default mode returns Vercel gateway models", () => {
-    delete process.env.AI_CLI_GATEWAY;
+  test("explicit Vercel mode returns Vercel gateway models", () => {
+    process.env.AI_CLI_GATEWAY = "vercel";
 
     expect(
       modelMetadata(languageModel("openai/gpt-5-mini")).provider
@@ -676,8 +680,8 @@ describe("gateway model factories", () => {
     );
   });
 
-  test("Cloudflare mode validates account configuration before model creation", () => {
-    process.env.AI_CLI_GATEWAY = "cloudflare";
+  test("default Cloudflare mode validates account configuration before model creation", () => {
+    delete process.env.AI_CLI_GATEWAY;
     delete process.env.CLOUDFLARE_ACCOUNT_ID;
 
     expect(() => languageModel("openai/gpt-5-mini")).toThrow(
@@ -685,8 +689,8 @@ describe("gateway model factories", () => {
     );
   });
 
-  test("Cloudflare mode constructs routed provider models without requests", () => {
-    process.env.AI_CLI_GATEWAY = "cloudflare";
+  test("default Cloudflare mode constructs routed provider models without requests", () => {
+    delete process.env.AI_CLI_GATEWAY;
     process.env.CLOUDFLARE_ACCOUNT_ID = "account";
     delete process.env.CLOUDFLARE_AI_GATEWAY_TOKEN;
     process.env.CLOUDFLARE_API_TOKEN = "cloudflare-token";

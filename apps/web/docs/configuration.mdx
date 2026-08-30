@@ -10,16 +10,16 @@ ai-cli is configured entirely through environment variables. There is no config 
 
 <Properties>
   <Property name="AI_CLI_GATEWAY" type="vercel | cloudflare">
-    Gateway backend. Defaults to `vercel`.
+    Gateway backend. Defaults to `cloudflare`.
   </Property>
   <Property name="AI_GATEWAY_API_KEY" type="string">
     Vercel AI Gateway API key. Provides access to all supported models.
   </Property>
   <Property name="CLOUDFLARE_ACCOUNT_ID" type="string">
-    Cloudflare account ID. Required when `AI_CLI_GATEWAY=cloudflare`.
+    Cloudflare account ID. Required on the default Cloudflare backend.
   </Property>
   <Property name="CLOUDFLARE_AI_GATEWAY_ID" type="string">
-    Cloudflare AI Gateway name. Defaults to `default`.
+    Cloudflare AI Gateway name. Defaults to `ai-cli`.
   </Property>
   <Property name="CLOUDFLARE_AI_GATEWAY_TOKEN" type="string">
     Preferred Cloudflare authentication token. Required in Cloudflare mode and
@@ -30,19 +30,19 @@ ai-cli is configured entirely through environment variables. There is no config 
     must grant AI Gateway Run.
   </Property>
   <Property name="AI_CLI_TEXT_MODEL" type="string">
-    Default text model. Overrides `openai/gpt-5.5`.
+    Default text model. Overrides `openrouter/google/gemini-2.5-flash-lite`.
   </Property>
   <Property name="AI_CLI_IMAGE_MODEL" type="string">
-    Default image model. Overrides `openai/gpt-image-2`.
+    Default image model. Overrides `fal/fal-ai/flux/schnell`.
   </Property>
   <Property name="AI_CLI_VIDEO_MODEL" type="string">
-    Default video model. Overrides `bytedance/seedance-2.0`.
+    Default video model. Overrides `replicate/prunaai/p-video`.
   </Property>
   <Property name="AI_CLI_SPEECH_MODEL" type="string">
-    Default speech model. Overrides `openai/tts-1`.
+    Default speech model. Overrides `fal/fal-ai/minimax/speech-02-turbo`.
   </Property>
   <Property name="AI_CLI_TRANSCRIPTION_MODEL" type="string">
-    Default transcription model. Overrides `openai/whisper-1`.
+    Default transcription model. Overrides `fal/fal-ai/wizper`.
   </Property>
   <Property name="AI_CLI_OUTPUT_DIR" type="path">
     Default output directory for generated files.
@@ -68,20 +68,18 @@ ai-cli is configured entirely through environment variables. There is no config 
 ## Example shell profile
 
 ```bash
-export AI_GATEWAY_API_KEY="gw_..."
-export AI_CLI_TEXT_MODEL="anthropic/claude-sonnet-4"
-export AI_CLI_IMAGE_MODEL="bfl/flux-2-pro"
-export AI_CLI_SPEECH_MODEL="openai/tts-1"
+export CLOUDFLARE_ACCOUNT_ID="your-account-id"
+export CLOUDFLARE_AI_GATEWAY_TOKEN="your-ai-gateway-run-token"
+export AI_CLI_TEXT_MODEL="openrouter/anthropic/claude-sonnet-4"
+export AI_CLI_IMAGE_MODEL="fal/fal-ai/flux/schnell"
 export AI_CLI_OUTPUT_DIR="$HOME/ai-output"
 ```
 
-Cloudflare example:
+Vercel alternative:
 
 ```bash
-export AI_CLI_GATEWAY="cloudflare"
-export CLOUDFLARE_ACCOUNT_ID="your-account-id"
-export CLOUDFLARE_AI_GATEWAY_ID="default"
-export CLOUDFLARE_AI_GATEWAY_TOKEN="your-ai-gateway-run-token"
+export AI_CLI_GATEWAY="vercel"
+export AI_GATEWAY_API_KEY="your-vercel-gateway-key"
 ```
 
-Cloudflare mode requires an [authenticated gateway](https://developers.cloudflare.com/ai-gateway/configuration/authentication/). Store OpenAI, Google AI Studio, OpenRouter, Replicate, and Fal credentials in the gateway's **Provider Keys** page with the `default` alias. ai-cli does not read or forward local provider keys or provider authorization headers in this mode.
+The default Cloudflare backend requires an [authenticated gateway](https://developers.cloudflare.com/ai-gateway/configuration/authentication/). Store OpenAI, Google AI Studio, OpenRouter, Replicate, and Fal credentials in the gateway's **Provider Keys** page with the `default` alias. ai-cli does not read or forward local provider keys or provider authorization headers.

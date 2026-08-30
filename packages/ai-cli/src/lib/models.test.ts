@@ -30,11 +30,15 @@ function mockGatewayError() {
 
 describe("resolveModels", () => {
   test("returns default when no user model", () => {
-    expect(resolveModels("text")[0]).toContain("/");
-    expect(resolveModels("image")[0]).toContain("/");
-    expect(resolveModels("video")[0]).toContain("/");
-    expect(resolveModels("speech")[0]).toContain("/");
-    expect(resolveModels("transcription")[0]).toContain("/");
+    expect(resolveModels("text")).toEqual([
+      "openrouter/google/gemini-2.5-flash-lite",
+    ]);
+    expect(resolveModels("image")).toEqual(["fal/fal-ai/flux/schnell"]);
+    expect(resolveModels("video")).toEqual(["replicate/prunaai/p-video"]);
+    expect(resolveModels("speech")).toEqual([
+      "fal/fal-ai/minimax/speech-02-turbo",
+    ]);
+    expect(resolveModels("transcription")).toEqual(["fal/fal-ai/wizper"]);
   });
 
   test("returns fully-qualified model as-is", () => {

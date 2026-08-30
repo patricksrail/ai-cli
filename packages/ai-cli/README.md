@@ -1,27 +1,41 @@
-# ai
+# ai-cli — Cloudflare BYOK fork
 
-A tiny, agent-native CLI for generating images, video, audio and text with dead-simple commands, stdin support and predictable artifact outputs. Uses [Vercel AI SDK](https://sdk.vercel.ai) with Vercel AI Gateway by default or Cloudflare AI Gateway's provider-native routes.
+This is Patrick's fork of [vercel-labs/ai-cli](https://github.com/vercel-labs/ai-cli). It keeps the upstream command surface and Vercel AI SDK, but makes an authenticated Cloudflare AI Gateway the default and keeps provider credentials in Cloudflare rather than in the CLI environment.
 
-## Install
+## What is different
+
+- Cloudflare is the default backend; set `AI_CLI_GATEWAY=vercel` to use upstream Vercel routing.
+- The default Cloudflare gateway ID is `ai-cli`; override it with `CLOUDFLARE_AI_GATEWAY_ID`.
+- OpenAI, Google AI Studio, OpenRouter, Replicate, and Fal keys live in Cloudflare Provider Keys under the `default` alias.
+- Provider authorization is stripped locally. The CLI sends only `cf-aig-authorization`, and Cloudflare injects the selected stored key.
+- Fal media queues, Replicate polling and Flux 2 inputs, plus Google and OpenRouter video downloads are adapted to remain on Cloudflare BYOK routes.
+
+## Install this fork
+
+Requires Bun and Node.js 22+.
 
 ```bash
-npm install -g ai-cli
+git clone https://github.com/patricksrail/ai-cli.git
+cd ai-cli
+bun install
+bun run --cwd packages/ai-cli build
+bun link --cwd packages/ai-cli
+export PATH="$HOME/.bun/bin:$PATH"
+ai --version
 ```
 
-Requires Node.js 22+ and either a [Vercel AI Gateway](https://vercel.com/docs/ai-gateway) key or an authenticated [Cloudflare AI Gateway](https://developers.cloudflare.com/ai-gateway/) with provider keys stored through BYOK.
+For a one-off run without linking, use `bun run packages/ai-cli/src/index.ts text "hello"` from the repository root.
 
-### Cloudflare AI Gateway
+## Configure Cloudflare
 
-Cloudflare mode is BYOK-only. [Authenticate the gateway](https://developers.cloudflare.com/ai-gateway/configuration/authentication/), add each upstream credential under **Provider Keys** with the `default` alias, and create a token with **AI Gateway Run** permission. Then configure ai-cli:
+[Authenticate the gateway](https://developers.cloudflare.com/ai-gateway/configuration/authentication/), add each upstream credential under **Provider Keys** with the `default` alias, and create a token with **AI Gateway Run** permission. Cloudflare and the `ai-cli` gateway are already the defaults in this fork:
 
 ```bash
-export AI_CLI_GATEWAY="cloudflare"
 export CLOUDFLARE_ACCOUNT_ID="your-account-id"
-export CLOUDFLARE_AI_GATEWAY_ID="default"
 export CLOUDFLARE_AI_GATEWAY_TOKEN="your-ai-gateway-run-token"
 ```
 
-`CLOUDFLARE_API_TOKEN` is accepted as a fallback when `CLOUDFLARE_AI_GATEWAY_TOKEN` is unset, but it must also grant **AI Gateway Run**. Provider credentials such as `OPENAI_API_KEY`, `GEMINI_API_KEY`, `OPENROUTER_API_KEY`, `REPLICATE_API_TOKEN`, and `FAL_KEY` are not read or forwarded in Cloudflare mode; store them in [Cloudflare BYOK](https://developers.cloudflare.com/ai-gateway/configuration/bring-your-own-keys/) instead.
+`CLOUDFLARE_API_TOKEN` is accepted as a fallback when `CLOUDFLARE_AI_GATEWAY_TOKEN` is unset, but it must also grant **AI Gateway Run**. Provider credentials such as `OPENAI_API_KEY`, `GEMINI_API_KEY`, `OPENROUTER_API_KEY`, `REPLICATE_API_TOKEN`, and `FAL_KEY` are not read or forwarded; store them in [Cloudflare BYOK](https://developers.cloudflare.com/ai-gateway/configuration/bring-your-own-keys/) instead.
 
 Cloudflare provider-native support in this fork:
 
@@ -36,6 +50,8 @@ Cloudflare provider-native support in this fork:
 Use the complete provider-prefixed ID for deterministic routing:
 
 ```bash
+ai text -m "google/gemini-2.5-flash-lite" "hello"             # Google key stored in Cloudflare
+ai text -m "openrouter/google/gemini-2.5-flash-lite" "hello"  # OpenRouter key stored in Cloudflare
 ai text -m "openrouter/anthropic/claude-sonnet-4" "hello"
 ai image -m "fal/fal-ai/flux/schnell" "a paper-cut fox"
 ai video -m "replicate/prunaai/p-video" "a paper airplane"
@@ -93,7 +109,7 @@ ai image -m flux-2-pro "a sunset"   # resolves to bfl/flux-2-pro
 ai audio speak -m tts-1 "hello"     # resolves to openai/tts-1
 ```
 
-In Cloudflare mode, `openai/...`, `google/...`, `openrouter/...`, `replicate/...`, and `fal/...` select those provider-native routes. Other creators use OpenRouter for text and Replicate for image/video, preserving the full model ID. Speech and transcription require an explicit `openai/`, `google/`, or `fal/` prefix. Model discovery and short-name expansion still use Vercel's public catalog, so use a full provider-prefixed ID when Cloudflare availability differs.
+On the default Cloudflare backend, `openai/...`, `google/...`, `openrouter/...`, `replicate/...`, and `fal/...` select those provider-native routes. The first Gemini example above calls Google directly; the second asks OpenRouter for the same underlying model. Other creator IDs use OpenRouter for text and Replicate for image/video, preserving the full model ID. Speech and transcription require an explicit `openai/`, `google/`, or `fal/` prefix. Model discovery and short-name expansion still use Vercel's public catalog, so use a full provider-prefixed ID when Cloudflare availability differs.
 
 Model IDs must contain printable ASCII characters without spaces. This applies to both `--model` values and the `AI_CLI_*_MODEL` environment variables.
 
@@ -267,17 +283,17 @@ When the CLI needs to choose a filename, it uses a response id when available an
 
 | Variable                      | Description                                                                                      |
 | ----------------------------- | ------------------------------------------------------------------------------------------------ |
-| `AI_CLI_GATEWAY`              | Gateway backend: `vercel` (default) or `cloudflare`                                              |
-| `AI_GATEWAY_API_KEY`          | Vercel AI Gateway authentication key                                                             |
+| `AI_CLI_GATEWAY`              | Gateway backend: `cloudflare` (default) or `vercel`                                              |
+| `AI_GATEWAY_API_KEY`          | Vercel AI Gateway key; used only with `AI_CLI_GATEWAY=vercel`                                    |
 | `CLOUDFLARE_ACCOUNT_ID`       | Cloudflare account ID; required in Cloudflare mode                                               |
-| `CLOUDFLARE_AI_GATEWAY_ID`    | Cloudflare AI Gateway name (default: `default`)                                                  |
+| `CLOUDFLARE_AI_GATEWAY_ID`    | Cloudflare AI Gateway name (default: `ai-cli`)                                                   |
 | `CLOUDFLARE_AI_GATEWAY_TOKEN` | Preferred Cloudflare token; must grant AI Gateway Run                                            |
 | `CLOUDFLARE_API_TOKEN`        | Fallback Cloudflare token when `CLOUDFLARE_AI_GATEWAY_TOKEN` is unset; must grant AI Gateway Run |
-| `AI_CLI_TEXT_MODEL`           | Default text model (overrides `openai/gpt-5.5`)                                                  |
-| `AI_CLI_IMAGE_MODEL`          | Default image model (overrides `openai/gpt-image-2`)                                             |
-| `AI_CLI_VIDEO_MODEL`          | Default video model (overrides `bytedance/seedance-2.0`)                                         |
-| `AI_CLI_SPEECH_MODEL`         | Default speech model (overrides `openai/tts-1`)                                                  |
-| `AI_CLI_TRANSCRIPTION_MODEL`  | Default transcription model (overrides `openai/whisper-1`)                                       |
+| `AI_CLI_TEXT_MODEL`           | Default text model (overrides `openrouter/google/gemini-2.5-flash-lite`)                         |
+| `AI_CLI_IMAGE_MODEL`          | Default image model (overrides `fal/fal-ai/flux/schnell`)                                        |
+| `AI_CLI_VIDEO_MODEL`          | Default video model (overrides `replicate/prunaai/p-video`)                                      |
+| `AI_CLI_SPEECH_MODEL`         | Default speech model (overrides `fal/fal-ai/minimax/speech-02-turbo`)                            |
+| `AI_CLI_TRANSCRIPTION_MODEL`  | Default transcription model (overrides `fal/fal-ai/wizper`)                                      |
 | `AI_CLI_OUTPUT_DIR`           | Default output directory for generated files                                                     |
 | `AI_CLI_PREVIEW`              | Set to `1` to force inline image preview, `0` to disable                                         |
 | `NO_COLOR`                    | Disable ANSI color output                                                                        |
@@ -285,7 +301,7 @@ When the CLI needs to choose a filename, it uses a response id when available an
 
 The `-m` flag always takes priority over `AI_CLI_*_MODEL` env vars. The `-o` flag always takes priority over `AI_CLI_OUTPUT_DIR`.
 
-Cloudflare mode intentionally ignores local provider credentials. Configure each provider key in the gateway's **Provider Keys** page through BYOK.
+The default Cloudflare backend intentionally ignores local provider credentials. Configure each provider key in the gateway's **Provider Keys** page through BYOK. To use Vercel instead, set both `AI_CLI_GATEWAY=vercel` and `AI_GATEWAY_API_KEY`.
 
 ### Timeouts
 

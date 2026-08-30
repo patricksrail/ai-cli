@@ -158,12 +158,12 @@ export function Features() {
 
           <Spotlight
             tone="iron"
-            title="Hundreds of models, one key."
-            description="Access text, image, video, speech, and transcription models from OpenAI, Anthropic, Google, Black Forest Labs, ByteDance, and more through Vercel AI Gateway."
+            title="Provider keys stay in Cloudflare."
+            description="Access text, image, video, speech, and transcription models through an authenticated Cloudflare AI Gateway with stored BYOK credentials."
             bullets={[
-              "short names resolve automatically: flux-2-pro, gpt-5.5, tts-1",
-              "live model listing from the gateway",
-              "per-type defaults configurable via env vars",
+              "route directly to Google, OpenAI, OpenRouter, Replicate, or Fal",
+              "keep provider credentials out of the CLI environment",
+              "select the upstream Vercel gateway explicitly when needed",
             ]}
             window={<Panel rows={modelrows} />}
           />

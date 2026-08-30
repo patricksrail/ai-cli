@@ -57,16 +57,13 @@ const EXPLICIT_PROVIDERS = new Set<CloudflareProvider>([
 // provider key from BYOK. This value is removed before every gateway request.
 const CLOUDFLARE_BYOK_CREDENTIAL = "cloudflare-byok";
 
-/**
- * Keep upstream behavior unless Cloudflare is selected explicitly. This avoids
- * changing authentication or model routing for existing ai-cli installations.
- */
+/** Cloudflare BYOK is the default in this fork; Vercel remains opt-in. */
 export function resolveGatewayBackend(
   env: Environment = process.env
 ): GatewayBackend {
   const value = env.AI_CLI_GATEWAY?.trim().toLowerCase();
-  if (!value || value === "vercel") return "vercel";
-  if (value === "cloudflare") return "cloudflare";
+  if (!value || value === "cloudflare") return "cloudflare";
+  if (value === "vercel") return "vercel";
   throw new Error(
     `AI_CLI_GATEWAY must be one of: vercel, cloudflare (got ${JSON.stringify(env.AI_CLI_GATEWAY)})`
   );
@@ -78,17 +75,17 @@ export function resolveCloudflareGatewayConfig(
   const accountId = nonEmpty(env.CLOUDFLARE_ACCOUNT_ID);
   if (!accountId) {
     throw new Error(
-      "CLOUDFLARE_ACCOUNT_ID is required when AI_CLI_GATEWAY=cloudflare"
+      "CLOUDFLARE_ACCOUNT_ID is required when using the Cloudflare gateway"
     );
   }
 
-  const gatewayId = nonEmpty(env.CLOUDFLARE_AI_GATEWAY_ID) ?? "default";
+  const gatewayId = nonEmpty(env.CLOUDFLARE_AI_GATEWAY_ID) ?? "ai-cli";
   const token =
     nonEmpty(env.CLOUDFLARE_AI_GATEWAY_TOKEN) ??
     nonEmpty(env.CLOUDFLARE_API_TOKEN);
   if (!token) {
     throw new Error(
-      "CLOUDFLARE_AI_GATEWAY_TOKEN or CLOUDFLARE_API_TOKEN is required when AI_CLI_GATEWAY=cloudflare"
+      "CLOUDFLARE_AI_GATEWAY_TOKEN or CLOUDFLARE_API_TOKEN is required when using the Cloudflare gateway"
     );
   }
 

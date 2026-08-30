@@ -45,3 +45,7 @@ Google Veo and OpenRouter return completed video file URLs on their provider ori
 Live media calls for OpenRouter, Replicate, and Fal succeeded through the authenticated gateway with all local provider credentials unset. Google image/video and OpenAI inference reached upstream account limits and returned quota or credit errors, so those providers were not recorded as successful inference tests.
 
 ImageMagick was absent from Patrick's macOS test environment on 2026-08-29. `ffmpeg` was available and generated the deterministic media fixture instead. This is an environment fact, not an ai-cli runtime dependency.
+
+## Local Bun link on Patrick's Mac
+
+On 2026-08-30, `bun link --cwd packages/ai-cli` correctly registered the package and created `$HOME/.bun/bin/ai`, but that directory was not on Patrick's PATH. The verified local entrypoint is `$HOME/.local/bin/ai`, symlinked to the Bun-generated executable. Rebuild `packages/ai-cli/dist` after source changes; the linked command then follows this checkout without reinstalling.

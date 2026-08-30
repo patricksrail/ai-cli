@@ -4,44 +4,39 @@ description: Common issues and how to resolve them.
 order: 8
 ---
 
-## Missing Vercel API key
-
-```
-Error: No API key found
-```
-
-Set the Vercel AI Gateway key:
-
-```bash
-export AI_GATEWAY_API_KEY="your-key"
-```
-
-Add the export to your shell profile (`~/.zshrc`, `~/.bashrc`) to persist across sessions.
-
 ## Cloudflare authentication or provider errors
 
-Cloudflare mode requires an authenticated gateway and an AI Gateway Run token. A missing token produces:
+Cloudflare is the default backend and requires an authenticated gateway plus an AI Gateway Run token. A missing token produces:
 
 ```
-Error: CLOUDFLARE_AI_GATEWAY_TOKEN or CLOUDFLARE_API_TOKEN is required when AI_CLI_GATEWAY=cloudflare
+Error: CLOUDFLARE_AI_GATEWAY_TOKEN or CLOUDFLARE_API_TOKEN is required when using the Cloudflare gateway
 ```
 
 Set the preferred token variable:
 
 ```bash
-export AI_CLI_GATEWAY="cloudflare"
 export CLOUDFLARE_ACCOUNT_ID="your-account-id"
-export CLOUDFLARE_AI_GATEWAY_ID="default"
 export CLOUDFLARE_AI_GATEWAY_TOKEN="your-ai-gateway-run-token"
 ```
 
-`CLOUDFLARE_API_TOKEN` is a fallback when `CLOUDFLARE_AI_GATEWAY_TOKEN` is unset. Either token must grant **AI Gateway Run**.
+The gateway ID defaults to `ai-cli`. `CLOUDFLARE_API_TOKEN` is a fallback when `CLOUDFLARE_AI_GATEWAY_TOKEN` is unset. Either token must grant **AI Gateway Run**.
 
 For an upstream `401` or `403`, confirm that the provider credential is active under the gateway's **Provider Keys** page and uses the `default` alias. Do not add a local provider API key: Cloudflare mode strips provider authorization and relies on BYOK.
 
 Nested provider IDs keep the route prefix and creator or owner, for example `openrouter/anthropic/claude-sonnet-4`, `replicate/prunaai/p-video`, or `fal/fal-ai/flux/schnell`.
 
 A quota, billing, or credit error comes from the stored provider account. Add credit or enable billing there; changing the Cloudflare token does not change the provider balance.
+
+## Missing Vercel API key
+
+Vercel is opt-in in this fork. If `AI_CLI_GATEWAY=vercel` produces `Error: No API key found`, set its gateway key:
+
+```bash
+export AI_CLI_GATEWAY="vercel"
+export AI_GATEWAY_API_KEY="your-key"
+```
+
+Add exports to your shell profile (`~/.zshrc`, `~/.bashrc`) to persist across sessions.
 
 ## Invalid model ID
 
@@ -90,7 +85,9 @@ ai --version
 Upgrade to the latest release:
 
 ```bash
-npm update -g ai-cli
+git pull --ff-only
+bun install
+bun run --cwd packages/ai-cli build
 ```
 
 ## Gateway unreachable

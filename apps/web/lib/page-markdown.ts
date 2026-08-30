@@ -50,7 +50,11 @@ ${description}
 ## Install
 
 \`\`\`bash
-npm install -g ai-cli
+gh repo clone patricksrail/ai-cli
+cd ai-cli
+bun install
+bun run --cwd packages/ai-cli build
+bun link --cwd packages/ai-cli
 \`\`\`
 
 ## Commands
