@@ -4,7 +4,9 @@ title: 'Design, implement, and test live model sessions'
 status: To Do
 assignee: []
 created_date: '2026-08-31 05:04'
-labels: []
+updated_date: '2026-08-31 06:01'
+labels:
+  - needs-patrick
 dependencies: []
 references:
   - >-
@@ -38,3 +40,27 @@ Add an upstream-friendly live/realtime capability to ai-cli for full-duplex prov
 - [ ] #7 README, website command/model/troubleshooting docs, CHANGELOG, HANDOFF, and LEARNINGS explain live support, installation/preflight behavior, provider limitations, and the tested Cloudflare path.
 - [ ] #8 Fork-specific code is concentrated behind narrow interfaces and the upstream-sync documentation identifies the intended merge-conflict boundary.
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Prove the two provider-native Cloudflare WebSocket paths with a disposable protocol spike, especially Google keyless BYOK.
+2. Add an experimental `ai live` command with explicit `openai/<model>` or `google/<model>` selection and a shared session state machine behind thin provider adapters.
+3. Package the JavaScript WebSocket transport with the CLI. Add a no-network preflight for external microphone/playback capabilities before opening a socket; keep typed-input and WAV-output mode self-contained.
+4. Add deterministic tests using injected transports, clocks, audio, and signals. Cover auth isolation, native events, PCM/WAV framing, interruption, cancellation, timeouts, disconnects, and provider errors.
+5. Add separately gated, bounded paid smoke tests for one OpenAI Realtime session and one Gemini Live session through Cloudflare. Disable retries, microphone playback, tools, and payload logging.
+6. Document the experimental UX, provider limits, preflight remedies, privacy defaults, smoke-test evidence, and narrow upstream merge boundary.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+GPT Pro architecture counsel, 2026-08-30:
+
+- Start with the already pinned Undici WebSocket implementation; add another client only if a protocol spike proves it inadequate.
+- Use Cloudflare provider-native `/openai` and `/google` realtime routes. Do not put live protocol handling into the existing large gateway module.
+- Treat OpenRouter as finite HTTP/SSE unless its official API adds full-duplex realtime; reject unsupported live routes before network access or spend.
+- Keep Cloudflare BYOK invariant: ai-cli must not read or forward local provider keys in Cloudflare mode. Google keyless BYOK is a release-blocking proof point.
+- Default payload logging off. Require explicit two-part opt-in for bounded paid smoke tests.
+- Product decisions still needed: experimental command acceptance, initial OS support, privacy/recording defaults, smoke-test funding and gateway, and behavior if Google keyless BYOK is unavailable.
+<!-- SECTION:NOTES:END -->
