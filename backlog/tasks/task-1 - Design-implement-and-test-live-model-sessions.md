@@ -4,7 +4,7 @@ title: 'Design, implement, and test live model sessions'
 status: To Do
 assignee: []
 created_date: '2026-08-31 05:04'
-updated_date: '2026-08-31 06:01'
+updated_date: '2026-08-31 06:30'
 labels:
   - needs-patrick
 dependencies: []
@@ -14,6 +14,8 @@ references:
   - 'https://developers.openai.com/api/docs/models/gpt-realtime'
   - 'https://ai.google.dev/gemini-api/docs/live-api'
   - 'https://openrouter.ai/docs/guides/overview/multimodal/audio'
+  - research/live-realtime-architecture-gpt-5.6-pro-review-2026-08-30.md
+  - 'https://chatgpt.com/c/6a950b86-8164-83e9-89c0-b18cfa75525e'
 documentation:
   - HANDOFF.md
   - docs/upstream-sync.md
