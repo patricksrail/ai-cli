@@ -7,9 +7,10 @@ import { generateSpeech, transcribe } from "ai";
 
 import { previewAudioOutputs } from "../lib/audio-preview.js";
 import type { Command } from "../lib/command.js";
+import { errorMessage } from "../lib/errors.js";
 import { speechModel, transcriptionModel } from "../lib/gateway.js";
 import { buildJobs, runJobs } from "../lib/jobs.js";
-import { fetchGatewayModels, resolveModels } from "../lib/models.js";
+import { resolveCommandModels } from "../lib/models.js";
 import type { OutputFormat } from "../lib/output.js";
 import { parseNonNegativeFloat, parsePositiveInt } from "../lib/parse.js";
 import { responseIdFromHeaders } from "../lib/response-id.js";
@@ -67,7 +68,7 @@ export function registerAudioCommand(program: Command) {
     .argument("[text]", "Text to convert to speech")
     .option(
       "-m, --model <model>",
-      "Speech model ID (creator/model-name), comma-separated for multi-model"
+      "Speech model ID (provider/model or creator/model), comma-separated for multi-model"
     )
     .option("-o, --output <path>", "Output file path or directory")
     .option("-f, --format <fmt>", "Audio output format (default: mp3)")
@@ -102,8 +103,7 @@ export function registerAudioCommand(program: Command) {
       const speed = opts.speed
         ? parseNonNegativeFloat(opts.speed, "speed")
         : undefined;
-      const gatewayModels = await fetchGatewayModels();
-      const models = resolveModels("speech", opts.model, gatewayModels.speech);
+      const models = await resolveCommandModels("speech", opts.model);
       const countPerModel = opts.count
         ? parsePositiveInt(opts.count, "count")
         : 1;
@@ -161,7 +161,7 @@ export function registerAudioCommand(program: Command) {
     .argument("[audio]", "Audio file path or URL")
     .option(
       "-m, --model <model>",
-      "Transcription model ID (creator/model-name), comma-separated for multi-model"
+      "Transcription model ID (provider/model or creator/model), comma-separated for multi-model"
     )
     .option("-o, --output <path>", "Output file path or directory")
     .option("-f, --format <fmt>", "Output format: md, txt (default: txt)")
@@ -189,18 +189,12 @@ export function registerAudioCommand(program: Command) {
       try {
         audioInput = await loadAudioInput(rawAudio, stdin);
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        process.stderr.write(`Error: ${message}\n`);
+        process.stderr.write(`Error: ${errorMessage(err)}\n`);
         process.exit(1);
       }
 
       const format = resolveTranscriptFormat(opts.format);
-      const gatewayModels = await fetchGatewayModels();
-      const models = resolveModels(
-        "transcription",
-        opts.model,
-        gatewayModels.transcription
-      );
+      const models = await resolveCommandModels("transcription", opts.model);
       const countPerModel = opts.count
         ? parsePositiveInt(opts.count, "count")
         : 1;
@@ -330,7 +324,7 @@ async function loadAudioInput(
   try {
     return new Uint8Array(await readFile(audio));
   } catch (err) {
-    const reason = err instanceof Error ? err.message : String(err);
+    const reason = errorMessage(err);
     throw new Error(`could not read audio file "${audio}": ${reason}`);
   }
 }

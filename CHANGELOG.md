@@ -7,6 +7,7 @@
 - **Video resolution** - `ai video --resolution <WxH>` requests an explicit output resolution such as `1920x1080` from supported video models
 - **Cloudflare AI Gateway default** - This fork routes text, image, video, speech and transcription through the authenticated `ai-cli` Cloudflare gateway by default; set `AI_CLI_GATEWAY=vercel` for upstream Vercel routing
 - **Fal media support** - Cloudflare mode supports Fal image, video, speech, and transcription models with full IDs such as `fal/fal-ai/flux/schnell`
+- **MiniMax H3 Max through Fal** - `ai video -m fal-ai/minimax/h3-max` uses Fal's official queue client through Cloudflare and selects text-to-video or image-to-video from the input
 
 ### Improvements
 
@@ -14,11 +15,15 @@
 - **Working fork defaults** - Default text, image, video, speech, and transcription models now use live-tested OpenRouter, Fal, and Replicate BYOK routes
 - **Fork documentation** - README, project instructions, and handoff notes document upstream tracking, account-side configuration, tested providers, and known billing limits
 - **Upstream sync runbook** - Fork instructions link to a merge, verification, live smoke-test, and push procedure for future `vercel-labs/ai-cli` updates
+- **Direct full-ID routing** - Text, video, and audio defaults and full provider model IDs no longer wait for the public discovery catalog; short aliases still use it
 
 ### Bug Fixes
 
 - **Cloudflare media routing** - Fal queue requests, Replicate prediction polling, and provider-hosted Veo and OpenRouter video downloads stay on Cloudflare BYOK routes
 - **Provider schema compatibility** - Fal transcription defaults to accepted segment chunks and Replicate Flux 2 reference images use the current `input_images` field
+- **Fal publisher video paths** - Fal video endpoints outside the `fal-ai/` namespace retain their exact publisher path instead of receiving an invalid extra prefix
+- **Provider error details** - Structured `detail`, validation, and nested provider errors are shown instead of blank error messages
+- **Bundled video downloads** - The CLI declares the safe downloader's `undici` runtime dependency so provider-hosted MP4 downloads work from the built executable
 
 ## 0.4.3
 

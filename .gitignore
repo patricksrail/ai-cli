@@ -4,6 +4,7 @@ ai
 gateway
 .DS_Store
 .turbo
+.scratchpad/
 *.tsbuildinfo
 .env*
 !.env.example

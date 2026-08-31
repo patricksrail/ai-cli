@@ -1,6 +1,7 @@
 import { experimental_generateVideo as generateVideo } from "ai";
 
 import type { Command } from "../lib/command.js";
+import { errorMessage } from "../lib/errors.js";
 import { videoDownload, videoModel } from "../lib/gateway.js";
 import {
   collectImageReference,
@@ -8,7 +9,7 @@ import {
   type ImageReference,
 } from "../lib/image-references.js";
 import { buildJobs, runJobs } from "../lib/jobs.js";
-import { fetchGatewayModels, resolveModels } from "../lib/models.js";
+import { resolveCommandModels } from "../lib/models.js";
 import {
   parsePositiveInt,
   parseAspectRatio,
@@ -44,7 +45,7 @@ export function registerVideoCommand(program: Command) {
     .argument("[prompt]", "The prompt to generate a video from")
     .option(
       "-m, --model <model>",
-      "Model ID (creator/model-name), comma-separated for multi-model"
+      "Model ID (provider/model or creator/model), comma-separated for multi-model"
     )
     .option("-o, --output <path>", "Output file path or directory")
     .option(
@@ -83,8 +84,7 @@ export function registerVideoCommand(program: Command) {
       try {
         referenceImages = await loadImageReferences(imageReferenceInputs);
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        process.stderr.write(`Error: ${message}\n`);
+        process.stderr.write(`Error: ${errorMessage(err)}\n`);
         process.exit(1);
       }
 
@@ -107,8 +107,7 @@ export function registerVideoCommand(program: Command) {
           : { image: images[0]! };
       }
 
-      const gatewayModels = await fetchGatewayModels();
-      const models = resolveModels("video", opts.model, gatewayModels.video);
+      const models = await resolveCommandModels("video", opts.model);
       const countPerModel = opts.count
         ? parsePositiveInt(opts.count, "count")
         : 1;

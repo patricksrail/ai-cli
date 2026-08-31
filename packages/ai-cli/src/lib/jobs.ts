@@ -1,3 +1,4 @@
+import { errorMessage } from "./errors.js";
 import {
   supportsKittyGraphics,
   displayImage,
@@ -212,7 +213,7 @@ export async function runJobs(
         }
       } catch (err: unknown) {
         const genElapsed = Date.now() - genStart;
-        const msg = err instanceof Error ? err.message : String(err);
+        const msg = errorMessage(err);
         multi.completeLine(
           lineIdxs[i],
           `${noun[0].toUpperCase()}${noun.slice(1)} ${job.label} failed: ${msg} (${formatElapsed(genElapsed)})`

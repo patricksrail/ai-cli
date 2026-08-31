@@ -1,6 +1,8 @@
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
+import { errorMessage } from "./errors.js";
+
 export type ImageReference = string | Uint8Array;
 
 export function collectImageReference(
@@ -68,8 +70,9 @@ async function readReferenceFile(path: string): Promise<Uint8Array> {
   try {
     return new Uint8Array(await readFile(path));
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    throw new Error(`could not read reference image "${path}": ${message}`);
+    throw new Error(
+      `could not read reference image "${path}": ${errorMessage(err)}`
+    );
   }
 }
 

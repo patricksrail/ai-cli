@@ -8,7 +8,7 @@ This is Patrick's fork of [vercel-labs/ai-cli](https://github.com/vercel-labs/ai
 - The default Cloudflare gateway ID is `ai-cli`; override it with `CLOUDFLARE_AI_GATEWAY_ID`.
 - OpenAI, Google AI Studio, OpenRouter, Replicate, and Fal keys live in Cloudflare Provider Keys under the `default` alias.
 - Provider authorization is stripped locally. The CLI sends only `cf-aig-authorization`, and Cloudflare injects the selected stored key.
-- Fal media queues, Replicate polling and Flux 2 inputs, plus Google and OpenRouter video downloads are adapted to remain on Cloudflare BYOK routes.
+- Fal publisher endpoints use Fal's official queue client through [Cloudflare's documented Fal proxy route](https://developers.cloudflare.com/ai-gateway/usage/providers/fal/); Replicate polling and Flux 2 inputs, plus Google and OpenRouter video downloads, remain on Cloudflare BYOK routes.
 
 ## Install this fork
 
@@ -45,7 +45,7 @@ Cloudflare provider-native support in this fork:
 | `google/`       |  Yes |   Yes |   Yes |    Yes |           Yes |
 | `openrouter/`   |  Yes |   Yes |   Yes |      — |             — |
 | `replicate/`    |    — |   Yes |   Yes |      — |             — |
-| `fal/`          |    — |   Yes |   Yes |    Yes |           Yes |
+| `fal/` (`fal-ai/` alias) | — | Yes | Yes | Yes | Yes |
 
 Use the complete provider-prefixed ID for deterministic routing:
 
@@ -55,6 +55,7 @@ ai text -m "openrouter/google/gemini-2.5-flash-lite" "hello"  # OpenRouter key s
 ai text -m "openrouter/anthropic/claude-sonnet-4" "hello"
 ai image -m "fal/fal-ai/flux/schnell" "a paper-cut fox"
 ai video -m "replicate/prunaai/p-video" "a paper airplane"
+ai video -m "fal-ai/minimax/h3-max" --duration 5 "a paper boat crosses a puddle"
 ai audio speak -m "fal/fal-ai/minimax/speech-02-turbo" "hello"
 ai audio transcribe -m "fal/fal-ai/wizper" recording.mp3
 ```
@@ -90,7 +91,7 @@ cat recording.mp3 | ai audio transcribe
 All commands support:
 
 ```
--m, --model <id>         Model ID (creator/model-name), comma-separated for multi-model
+-m, --model <id>         Model ID (provider/model or creator/model), comma-separated for multi-model
 -o, --output <path>      Output file path or directory
 -n, --count <n>          Number of generations per model (default: 1)
 -p, --concurrency <n>    Max parallel generations (default: 4, video: 2)
@@ -101,7 +102,7 @@ All commands support:
 
 When using `--json`, stdout contains only metadata. Generated text, image, video and audio outputs are written to files even when stdout is piped.
 
-Model IDs can be specified as `creator/model-name` or just `model-name` (resolved against models fetched from the gateway):
+Model IDs can be specified as `provider/model`, `creator/model`, or just `model-name`. Text, video, and audio defaults and full IDs route without a catalog request; short names are expanded with the public discovery catalog. Image generation also uses catalog metadata to distinguish language-image models:
 
 ```bash
 ai text -m gpt-5.5 "hello"          # resolves to openai/gpt-5.5
@@ -109,7 +110,7 @@ ai image -m flux-2-pro "a sunset"   # resolves to bfl/flux-2-pro
 ai audio speak -m tts-1 "hello"     # resolves to openai/tts-1
 ```
 
-On the default Cloudflare backend, `openai/...`, `google/...`, `openrouter/...`, `replicate/...`, and `fal/...` select those provider-native routes. The first Gemini example above calls Google directly; the second asks OpenRouter for the same underlying model. Other creator IDs use OpenRouter for text and Replicate for image/video, preserving the full model ID. Speech and transcription require an explicit `openai/`, `google/`, or `fal/` prefix. Model discovery and short-name expansion still use Vercel's public catalog, so use a full provider-prefixed ID when Cloudflare availability differs.
+On the default Cloudflare backend, `openai/...`, `google/...`, `openrouter/...`, `replicate/...`, and `fal/...` select provider-native routes. `fal-ai/...` is also accepted for Fal-owned endpoint IDs, and `fal-ai/minimax/h3-max` is a convenience provider/model spelling that selects Fal as the host and MiniMax H3 Max as the publisher/model. The first Gemini example above calls Google directly; the second asks OpenRouter for the same underlying model. Other creator IDs use OpenRouter for text and Replicate for image/video, preserving the full model ID. Speech and transcription require an explicit provider prefix. The `models` command and short-name expansion use Vercel's public catalog only for discovery; text, video, and audio generation with defaults or full IDs does not depend on it.
 
 Model IDs must contain printable ASCII characters without spaces. This applies to both `--model` values and the `AI_CLI_*_MODEL` environment variables.
 
@@ -149,9 +150,11 @@ Image inputs can be local paths, `file://` URLs, `http(s)://` URLs or data URLs.
 ```bash
 ai video -i input.png "animate this"
 cat input.png | ai video "animate this"
+ai video -m "fal-ai/minimax/h3-max" --duration 5 "a paper boat crosses a puddle"
+ai video -m "fal-ai/minimax/h3-max" -i input.png "slowly dolly toward the subject"
 ```
 
-Resolution support is model-dependent; unsupported resolutions may be rejected by the selected video model.
+The H3 Max provider model selects Fal's documented [text-to-video](https://fal.ai/models/minimax/h3-max/text-to-video/api) or image-to-video endpoint from the input and handles queue submission, polling, and result retrieval inside the CLI. The exact endpoint forms, such as `fal/minimax/h3-max/text-to-video`, remain valid. Resolution support is model-dependent; H3 Max accepts 480p or 768p output, selected with a matching height such as `854x480` or `1366x768`.
 
 ### text
 

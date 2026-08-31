@@ -64,8 +64,11 @@ Generate video from a prompt or image.
 ```bash
 ai video "a spinning triangle"
 ai video "a cinematic landscape" --resolution 1920x1080
+ai video -m "fal-ai/minimax/h3-max" --duration 5 "a paper boat crosses a puddle"
 ai image "a dragon" | ai video "animate this"
 ```
+
+For MiniMax H3 Max through Fal, the CLI selects text-to-video or image-to-video from the input and handles Fal queue polling automatically. An input image can be supplied with `-i` or stdin.
 
 ### Options
 
@@ -121,7 +124,7 @@ ai text "summarize this" < notes.txt
 
 <Properties>
   <Property name="-m, --model" type="string">
-    Model ID (`creator/model`). Comma-separated for multi-model.
+    Model ID (`provider/model` or `creator/model`). Comma-separated for multi-model.
   </Property>
   <Property name="-o, --output" type="path">
     Output file path or directory.

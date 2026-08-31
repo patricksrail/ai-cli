@@ -6,6 +6,7 @@ import {
 } from "ai";
 
 import type { Command } from "../lib/command.js";
+import { errorMessage } from "../lib/errors.js";
 import { languageModel } from "../lib/gateway.js";
 import {
   collectImageReference,
@@ -14,7 +15,7 @@ import {
   type ImageReference,
 } from "../lib/image-references.js";
 import { buildJobs, runJobs } from "../lib/jobs.js";
-import { fetchGatewayModels, resolveModels } from "../lib/models.js";
+import { resolveCommandModels } from "../lib/models.js";
 import type { OutputFormat } from "../lib/output.js";
 import { parsePositiveInt, parseTemperature } from "../lib/parse.js";
 import { responseIdFromHeaders } from "../lib/response-id.js";
@@ -54,7 +55,7 @@ export function registerTextCommand(program: Command) {
     .argument("[prompt]", "The prompt to generate text from")
     .option(
       "-m, --model <model>",
-      "Model ID (creator/model-name), comma-separated for multi-model"
+      "Model ID (provider/model or creator/model), comma-separated for multi-model"
     )
     .option("-o, --output <path>", "Output file path or directory")
     .option("-f, --format <fmt>", "Output format: md, txt (default: md)")
@@ -90,8 +91,7 @@ export function registerTextCommand(program: Command) {
       try {
         referenceImages = await loadImageReferences(imageReferenceInputs);
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        process.stderr.write(`Error: ${message}\n`);
+        process.stderr.write(`Error: ${errorMessage(err)}\n`);
         process.exit(1);
       }
 
@@ -105,8 +105,7 @@ export function registerTextCommand(program: Command) {
       const textPrompt = buildTextPrompt({ prompt, stdinText, images });
 
       const format = resolveFormat(opts.format);
-      const gatewayModels = await fetchGatewayModels();
-      const models = resolveModels("text", opts.model, gatewayModels.text);
+      const models = await resolveCommandModels("text", opts.model);
       const countPerModel = opts.count
         ? parsePositiveInt(opts.count, "count")
         : 1;

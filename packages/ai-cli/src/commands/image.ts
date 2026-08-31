@@ -1,6 +1,7 @@
 import { generateImage, generateText, type JSONValue } from "ai";
 
 import type { Command } from "../lib/command.js";
+import { errorMessage } from "../lib/errors.js";
 import { imageModel, languageModel } from "../lib/gateway.js";
 import {
   collectImageReference,
@@ -40,7 +41,7 @@ export function registerImageCommand(program: Command) {
     .argument("[prompt]", "The prompt to generate an image from")
     .option(
       "-m, --model <model>",
-      "Model ID (creator/model-name), comma-separated for multi-model"
+      "Model ID (provider/model or creator/model), comma-separated for multi-model"
     )
     .option("-o, --output <path>", "Output file path or directory")
     .option(
@@ -80,8 +81,7 @@ export function registerImageCommand(program: Command) {
       try {
         referenceImages = await loadImageReferences(imageReferenceInputs);
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        process.stderr.write(`Error: ${message}\n`);
+        process.stderr.write(`Error: ${errorMessage(err)}\n`);
         process.exit(1);
       }
 

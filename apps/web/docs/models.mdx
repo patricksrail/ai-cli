@@ -20,7 +20,7 @@ The `-m` flag always takes priority over environment variables.
 
 ## Specifying a model
 
-Use `creator/model-name` format:
+Use `provider/model` for deterministic Cloudflare routing or `creator/model` when the default media/text route is appropriate:
 
 ```bash
 ai text -m "anthropic/claude-sonnet-4" "hello"
@@ -48,7 +48,7 @@ On the default Cloudflare backend, the first path segment selects a provider-nat
 | `google/`       |  Yes |   Yes |   Yes |    Yes |           Yes |
 | `openrouter/`   |  Yes |   Yes |   Yes |      — |             — |
 | `replicate/`    |    — |   Yes |   Yes |      — |             — |
-| `fal/`          |    — |   Yes |   Yes |    Yes |           Yes |
+| `fal/` (`fal-ai/` alias) | — | Yes | Yes | Yes | Yes |
 
 The table describes ai-cli adapter support; individual models can support fewer inputs or options. Use complete provider-prefixed IDs when a provider contains a nested creator or owner:
 
@@ -60,15 +60,18 @@ ai image -m "replicate/black-forest-labs/flux-2-pro" -i reference.png "restyle t
 ai video -m "replicate/prunaai/p-video" "a paper airplane"
 ai image -m "fal/fal-ai/flux/schnell" "a paper-cut fox"
 ai video -m "fal/fal-ai/wan/v2.2-5b/image-to-video" -i input.png "animate this"
+ai video -m "fal-ai/minimax/h3-max" --duration 5 "a paper boat crosses a puddle"
 ai audio speak -m "fal/fal-ai/minimax/speech-02-turbo" "hello"
 ai audio transcribe -m "fal/fal-ai/wizper" recording.mp3
 ```
 
-The first two commands select the same underlying Gemini model through different providers. `google/...` uses the Google AI Studio key stored in Cloudflare; `openrouter/google/...` uses the stored OpenRouter key and asks OpenRouter to route the model.
+The first two commands select the same underlying Gemini model through different providers. `google/...` uses the Google AI Studio key stored in Cloudflare; `openrouter/google/...` uses the stored OpenRouter key and asks OpenRouter to route the model. This only works when both hosts expose that model.
+
+`fal-ai/minimax/h3-max` selects Fal as the host and MiniMax H3 Max as the publisher/model. ai-cli uses [Cloudflare's documented Fal SDK proxy](https://developers.cloudflare.com/ai-gateway/usage/providers/fal/) and Fal's queue client to submit, poll, and retrieve the result. It chooses the text-to-video or image-to-video endpoint based on whether an input image is present. Exact Fal endpoint IDs such as `fal/minimax/h3-max/text-to-video` are also accepted.
 
 Other creator IDs route through OpenRouter for text and Replicate for image/video while preserving the complete ID. Speech and transcription require an explicit `openai/`, `google/`, or `fal/` prefix.
 
-The `models` command and short-name expansion still use Vercel's public model catalog. Use a full provider-prefixed ID when Cloudflare or a provider account exposes a different set of models.
+The `models` command and short-name expansion use Vercel's public model catalog for discovery. Text, video, and audio defaults and full provider IDs skip that lookup and route directly; image generation retains catalog metadata to distinguish language-image models. Use a full provider-prefixed ID when Cloudflare or a provider account exposes a different set of models.
 
 ## Multi-model comparison
 

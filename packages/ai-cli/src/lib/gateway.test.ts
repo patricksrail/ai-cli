@@ -5,6 +5,8 @@ import { createFal } from "@ai-sdk/fal";
 import {
   cloudflareProviderBaseURL,
   createCloudflareByokFetch,
+  createCloudflareFalQueueVideoModel,
+  createCloudflareFalClientFetch,
   createCloudflareFalFetch,
   createCloudflareGoogleVideoDownload,
   createCloudflareOpenRouterVideoDownload,
@@ -180,6 +182,14 @@ describe("routeCloudflareModel", () => {
       provider: "fal",
       modelId: "fal-ai/flux/schnell",
     });
+    expect(routeCloudflareModel("fal-ai/minimax/h3-max", "video")).toEqual({
+      provider: "fal",
+      modelId: "minimax/h3-max",
+    });
+    expect(routeCloudflareModel("fal-ai/flux/schnell", "image")).toEqual({
+      provider: "fal",
+      modelId: "fal-ai/flux/schnell",
+    });
   });
 
   test("routes creator-style text through OpenRouter with the full id", () => {
@@ -317,6 +327,191 @@ describe("createCloudflareFalFetch", () => {
     expect(new Headers(calls[0]?.init?.headers).has("x-fal-target-url")).toBe(
       false
     );
+  });
+});
+
+describe("createCloudflareFalClientFetch", () => {
+  test("authenticates only Cloudflare proxy requests", async () => {
+    const { calls, fetchFunction } = sequentialFetch([
+      new Response("gateway"),
+      new Response("direct"),
+    ]);
+    const falClientFetch = createCloudflareFalClientFetch(
+      { "cf-aig-authorization": "Bearer cloudflare-token" },
+      fetchFunction
+    );
+
+    await falClientFetch(FAL_BASE_URL, {
+      headers: { authorization: "Key provider-placeholder" },
+    });
+    await falClientFetch("https://v3.fal.media/video.mp4");
+
+    const gatewayHeaders = new Headers(calls[0]?.init?.headers);
+    expect(gatewayHeaders.has("authorization")).toBe(false);
+    expect(gatewayHeaders.get("cf-aig-authorization")).toBe(
+      "Bearer cloudflare-token"
+    );
+    expect(
+      new Headers(calls[1]?.init?.headers).has("cf-aig-authorization")
+    ).toBe(false);
+  });
+});
+
+describe("createCloudflareFalQueueVideoModel", () => {
+  test("uses Fal's official Cloudflare proxy flow without changing publisher namespaces", async () => {
+    let clientSettings: unknown;
+    let subscription: { endpointId: string; options: unknown } | undefined;
+    const model = createCloudflareFalQueueVideoModel(
+      "minimax/h3-max/text-to-video",
+      {
+        CLOUDFLARE_ACCOUNT_ID: "account",
+        CLOUDFLARE_AI_GATEWAY_ID: "gateway",
+        CLOUDFLARE_AI_GATEWAY_TOKEN: "cloudflare-token",
+      },
+      (settings) => {
+        clientSettings = settings;
+        return {
+          async subscribe(endpointId, options) {
+            subscription = { endpointId, options };
+            return {
+              requestId: "fal-request-id",
+              data: {
+                video: {
+                  url: "https://v3.fal.media/video.mp4",
+                  content_type: "video/mp4",
+                  width: 1366,
+                  height: 768,
+                },
+              },
+            };
+          },
+        };
+      }
+    );
+
+    const result = await model.doGenerate!({
+      prompt: "A paper boat crosses a puddle",
+      n: 1,
+      aspectRatio: "16:9",
+      resolution: "1366x768",
+      duration: 5,
+      fps: undefined,
+      seed: 42,
+      image: undefined,
+      frameImages: undefined,
+      inputReferences: undefined,
+      generateAudio: undefined,
+      providerOptions: {},
+      headers: { "x-title": "ai-cli", ignored: undefined },
+    });
+
+    expect(clientSettings).toMatchObject({
+      proxyUrl: { url: FAL_BASE_URL, when: "always" },
+    });
+    expect(typeof (clientSettings as { fetch?: unknown }).fetch).toBe(
+      "function"
+    );
+    expect("credentials" in (clientSettings as object)).toBe(false);
+    expect(subscription).toEqual({
+      endpointId: "minimax/h3-max/text-to-video",
+      options: {
+        input: {
+          prompt: "A paper boat crosses a puddle",
+          aspect_ratio: "16:9",
+          duration: 5,
+          resolution: "768P",
+          seed: 42,
+          prompt_expansion_mode: "balanced",
+          enable_safety_checker: true,
+        },
+        abortSignal: undefined,
+        headers: { "x-title": "ai-cli" },
+        logs: false,
+        mode: "polling",
+      },
+    });
+    expect(result.videos).toEqual([
+      {
+        type: "url",
+        url: "https://v3.fal.media/video.mp4",
+        mediaType: "video/mp4",
+      },
+    ]);
+    expect(result.response.headers).toEqual({
+      "x-request-id": "fal-request-id",
+    });
+  });
+
+  test("selects H3 Max image-to-video from the short provider model ID", async () => {
+    let endpointId: string | undefined;
+    let input: Record<string, unknown> | undefined;
+    const model = createCloudflareFalQueueVideoModel(
+      "minimax/h3-max",
+      {
+        CLOUDFLARE_ACCOUNT_ID: "account",
+        CLOUDFLARE_API_TOKEN: "cloudflare-token",
+      },
+      () => ({
+        async subscribe(endpoint, options) {
+          endpointId = endpoint;
+          input = options.input;
+          return {
+            requestId: "request",
+            data: { video: { url: "https://v3.fal.media/video.mp4" } },
+          };
+        },
+      })
+    );
+
+    await model.doGenerate!({
+      prompt: "Animate this",
+      n: 1,
+      aspectRatio: undefined,
+      resolution: undefined,
+      duration: undefined,
+      fps: undefined,
+      seed: undefined,
+      image: { type: "url", url: "https://example.com/input.png" },
+      frameImages: undefined,
+      inputReferences: undefined,
+      generateAudio: undefined,
+      providerOptions: {},
+    });
+
+    expect(endpointId).toBe("minimax/h3-max/image-to-video");
+    expect(input?.image_url).toBe("https://example.com/input.png");
+  });
+
+  test("fails clearly when Fal completes without a video URL", async () => {
+    const model = createCloudflareFalQueueVideoModel(
+      "minimax/h3-max",
+      {
+        CLOUDFLARE_ACCOUNT_ID: "account",
+        CLOUDFLARE_API_TOKEN: "cloudflare-token",
+      },
+      () => ({
+        async subscribe() {
+          return { requestId: "request", data: {} };
+        },
+      })
+    );
+
+    expect(
+      model.doGenerate!({
+        prompt: "prompt",
+        n: 1,
+        aspectRatio: undefined,
+        resolution: undefined,
+        duration: undefined,
+        fps: undefined,
+        seed: undefined,
+        image: undefined,
+        frameImages: undefined,
+        inputReferences: undefined,
+        generateAudio: undefined,
+        providerOptions: {},
+      })
+    ).rejects.toThrow("without a video result");
   });
 });
 
@@ -721,6 +916,9 @@ describe("gateway model factories", () => {
     expect(
       modelMetadata(videoModel("fal/fal-ai/wan/v2.2-5b/image-to-video")).modelId
     ).toBe("fal-ai/wan/v2.2-5b/image-to-video");
+    expect(modelMetadata(videoModel("fal-ai/minimax/h3-max")).modelId).toBe(
+      "minimax/h3-max"
+    );
     expect(
       modelMetadata(speechModel("fal/fal-ai/minimax/speech-02-turbo")).modelId
     ).toBe("fal-ai/minimax/speech-02-turbo");

@@ -61,20 +61,24 @@ Evidence-safe model examples include:
 - `replicate/prunaai/p-video`
 - `fal/fal-ai/flux/schnell`
 - `fal/fal-ai/wan/v2.2-5b/image-to-video`
+- `fal-ai/minimax/h3-max` (official Fal queue client; text/image endpoint selected from input)
 - `fal/fal-ai/minimax/speech-02-turbo`
 - `fal/fal-ai/wizper`
 
-Generated images and videos were checked for real MIME type, dimensions, duration and codecs; representative frames were visually inspected. The OpenRouter image provider returned JPEG bytes for one requested `.png` output, which is provider behavior rather than a routing failure.
+Generated images and videos were checked for real MIME type, dimensions, duration and codecs; representative frames were visually inspected. The H3 Max CLI acceptance output was a 7,232,157-byte MP4 with 5.184 seconds of 1344x768 H.264 video at 24 fps and AAC audio. The OpenRouter image provider returned JPEG bytes for one requested `.png` output, which is provider behavior rather than a routing failure.
 
 Video-file understanding is not implemented: `ai text` accepts still-image references but not video input. Text/image/video generation, still-image vision, image-to-image, image-to-video, speech and transcription were tested; video understanding was not.
 
 ## Provider-Specific Fixes
 
 - Fal absolute `fal.run` and queue URLs are rewritten through Cloudflare `/fal` with `x-fal-target-url`; CDN downloads remain direct and uncredentialed.
+- Fal publisher video endpoints outside the `fal-ai/` namespace use Fal's official queue client through Cloudflare's SDK proxy. `fal-ai/minimax/h3-max` selects text-to-video or image-to-video from the CLI input and handles polling internally.
 - Fal transcription defaults `chunkLevel` to `segment`, matching the live endpoint while honoring explicit caller options.
 - Replicate asynchronous predictions poll through Cloudflare. Flux 2 numbered reference fields are rewritten to the current `input_images` array.
 - Google Veo and OpenRouter final video-content URLs are mapped back through their Cloudflare provider routes, and the Cloudflare token is removed before CDN redirects.
 - Vercel behavior remains available explicitly and model discovery still uses Vercel's public catalog.
+- Text, video, and audio defaults and full provider IDs skip public catalog discovery; short aliases and image model classification still fetch it.
+- Structured provider errors surface `detail` and validation fields, and `undici` is a direct runtime dependency for the AI SDK's safe bundled video downloader.
 
 ## Costs and Balances
 
@@ -86,7 +90,7 @@ Video-file understanding is not implemented: `ai text` accepts still-image refer
 
 ## Verification Baseline
 
-The Cloudflare-default fork passed 204 CLI tests with 515 assertions and 20 web tests, plus typecheck, build, format, lint, MDX serialization, diff checks and credential scans. Re-run all checks after gateway or documentation changes:
+The Cloudflare-default fork passed 213 CLI tests with 537 assertions and 20 web tests, plus typecheck, build, format, lint, MDX serialization and diff checks. Re-run all checks after gateway or documentation changes:
 
 ```bash
 bun run typecheck

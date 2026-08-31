@@ -2,6 +2,8 @@ import { afterEach, describe, expect, mock, test } from "bun:test";
 
 import {
   resolveModels,
+  resolveCommandModels,
+  needsModelDiscovery,
   fetchGatewayModels,
   fetchModelEndpoints,
   resetGatewayCache,
@@ -117,6 +119,40 @@ describe("resolveModels multi", () => {
     const result = resolveModels("image", ",,,");
     expect(result).toHaveLength(1);
     expect(result[0]).toContain("/");
+  });
+});
+
+describe("resolveCommandModels", () => {
+  test("does not fetch discovery data for defaults or full provider IDs", async () => {
+    const fetchMock = mock(() =>
+      Promise.reject(new Error("catalog should not be fetched"))
+    );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    expect(await resolveCommandModels("video")).toEqual([
+      "replicate/prunaai/p-video",
+    ]);
+    expect(
+      await resolveCommandModels("video", "fal-ai/minimax/h3-max")
+    ).toEqual(["fal-ai/minimax/h3-max"]);
+    expect(fetchMock).toHaveBeenCalledTimes(0);
+  });
+
+  test("fetches discovery data only when expanding a short alias", async () => {
+    mockGateway([
+      {
+        id: "minimax/minimax-h3-max",
+        owned_by: "minimax",
+        type: "video",
+      },
+    ]);
+
+    expect(needsModelDiscovery("minimax-h3-max")).toBe(true);
+    expect(needsModelDiscovery("fal-ai/minimax/h3-max")).toBe(false);
+    expect(await resolveCommandModels("video", "minimax-h3-max")).toEqual([
+      "minimax/minimax-h3-max",
+    ]);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
   });
 });
 

@@ -1,6 +1,6 @@
 ---
 date_created: 2026-08-29
-date_updated: 2026-08-29
+date_updated: 2026-08-30
 summary: Verified authenticated Cloudflare BYOK routing and provider-native media behavior for ai-cli.
 related:
   - https://developers.cloudflare.com/ai-gateway/usage/rest-api/
@@ -34,6 +34,10 @@ Replicate Flux 2's current schema accepts reference images in the plural `input_
 
 The Fal SDK uses the configured base URL for image calls but constructs absolute `fal.run` and `queue.fal.run` URLs for speech, video, transcription, submission, status, and result calls. Cloudflare mode rewrites those requests to its `/fal` route and sends the exact original URL in `x-fal-target-url`. Fal CDN downloads remain direct and never receive the Cloudflare Run token.
 
+Fal endpoint namespaces are not uniformly `fal-ai/...`. MiniMax H3 Max's official endpoint is `minimax/h3-max/text-to-video`, while the AI SDK Fal video adapter unconditionally builds `queue.fal.run/fal-ai/{model}`. On 2026-08-30, that produced a completed queue request whose result was `404 Path /h3-max/text-to-video not found`. The verified fix uses `@fal-ai/client` 1.10.1 for non-`fal-ai/` video namespaces with Cloudflare's documented `proxyUrl` configuration and `when: "always"` in Node/Bun. `fal.subscribe()` then owns submission, status polling, and result retrieval without changing the endpoint. H3 Max receives a numeric duration, its `480P`/`768P` resolution form, and required prompt-expansion default.
+
+The first built-CLI H3 Max retest completed inference but failed while downloading the returned Fal CDN URL because AI SDK's safe Node downloader dynamically loads `undici`; Bun had not made the transitive package resolvable from the bundled entrypoint. Declaring the compatible `undici` 7 runtime dependency fixed every provider-hosted URL download without replacing the SDK's validated downloader.
+
 The installed Fal SDK defaulted transcription `chunkLevel` to `word`, while the live endpoint accepted `segment`. The Cloudflare wrapper defaults to `segment` and still honors an explicit `providerOptions.fal.chunkLevel` override.
 
 ## Provider-hosted video downloads through BYOK
@@ -42,7 +46,7 @@ Google Veo and OpenRouter return completed video file URLs on their provider ori
 
 ## Live validation boundaries
 
-Live media calls for OpenRouter, Replicate, and Fal succeeded through the authenticated gateway with all local provider credentials unset. Google image/video and OpenAI inference reached upstream account limits and returned quota or credit errors, so those providers were not recorded as successful inference tests.
+Live media calls for OpenRouter, Replicate, and Fal succeeded through the authenticated gateway with all local provider credentials unset. The exact command `ai video -m "fal-ai/minimax/h3-max" --duration 5 ...` produced a 7,232,157-byte MP4 with 5.184 seconds of 1344x768 H.264 video at 24 fps and AAC audio. Google image/video and OpenAI inference reached upstream account limits and returned quota or credit errors, so those providers were not recorded as successful inference tests.
 
 ImageMagick was absent from Patrick's macOS test environment on 2026-08-29. `ffmpeg` was available and generated the deterministic media fixture instead. This is an environment fact, not an ai-cli runtime dependency.
 

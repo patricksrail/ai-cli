@@ -3,12 +3,14 @@ import { createGoogle } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
 import {
   cancelResponseBody,
+  convertImageModelFileToDataUri,
   DownloadError,
   fetchWithValidatedRedirects,
   readResponseWithSizeLimit,
   type FetchFunction,
 } from "@ai-sdk/provider-utils";
 import { createReplicate } from "@ai-sdk/replicate";
+import { createFalClient } from "@fal-ai/client";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import {
   gateway as vercelGateway,
@@ -45,12 +47,12 @@ export interface CloudflareModelRoute {
   modelId: string;
 }
 
-const EXPLICIT_PROVIDERS = new Set<CloudflareProvider>([
-  "openai",
-  "google",
-  "openrouter",
-  "replicate",
-  "fal",
+const EXPLICIT_PROVIDER_PREFIXES = new Map<string, CloudflareProvider>([
+  ["openai", "openai"],
+  ["google", "google"],
+  ["openrouter", "openrouter"],
+  ["replicate", "replicate"],
+  ["fal", "fal"],
 ]);
 
 // Provider SDKs require a credential even when Cloudflare supplies the real
@@ -128,11 +130,28 @@ export function routeCloudflareModel(
   const slash = modelId.indexOf("/");
   const prefix = slash === -1 ? modelId : modelId.slice(0, slash);
 
-  if (EXPLICIT_PROVIDERS.has(prefix as CloudflareProvider)) {
-    const provider = prefix as CloudflareProvider;
+  if (prefix === "fal-ai") {
+    const remainder = modelId.slice(slash + 1);
+    if (slash === -1 || !remainder) {
+      throw new Error('model ID must include a model after "fal-ai/"');
+    }
+    assertProviderSupports("fal", modality, modelId);
+
+    // Most Fal-owned endpoint IDs themselves begin with `fal-ai/`, so retain
+    // that namespace. H3 Max is published under Fal's top-level `minimax/`
+    // namespace; accept the intuitive host-qualified spelling for this model.
+    const falEndpoint = remainder.startsWith("minimax/h3-max")
+      ? remainder
+      : modelId;
+    return { provider: "fal", modelId: falEndpoint };
+  }
+
+  const explicitProvider = EXPLICIT_PROVIDER_PREFIXES.get(prefix);
+  if (explicitProvider) {
+    const provider = explicitProvider;
     const strippedModelId = modelId.slice(slash + 1);
     if (slash === -1 || !strippedModelId) {
-      throw new Error(`model ID must include a model after "${provider}/"`);
+      throw new Error(`model ID must include a model after "${prefix}/"`);
     }
     assertProviderSupports(provider, modality, modelId);
     return { provider, modelId: strippedModelId };
@@ -213,7 +232,13 @@ export function videoModel(modelId: string): GatewayVideoModel {
     case "replicate":
       return providers.replicate.video(route.modelId);
     case "fal":
-      return providers.fal.video(route.modelId);
+      // The AI SDK Fal video adapter prepends `fal-ai/` to every queue path.
+      // That is valid for Fal-owned endpoints, but breaks publisher namespaces
+      // such as the official `minimax/h3-max/...` endpoints. Use Fal's own
+      // queue client for those paths; it owns submit, polling, and result calls.
+      return route.modelId.startsWith("fal-ai/")
+        ? providers.fal.video(route.modelId)
+        : createCloudflareFalQueueVideoModel(route.modelId);
     case "openai":
       throw unsupportedProviderError("video", modelId, [
         "google",
@@ -222,6 +247,227 @@ export function videoModel(modelId: string): GatewayVideoModel {
         "fal",
       ]);
   }
+}
+
+type FalQueueVideoModel = GatewayVideoModel;
+type FalQueueVideoOptions = Parameters<
+  NonNullable<FalQueueVideoModel["doGenerate"]>
+>[0];
+
+interface FalQueueVideoResult {
+  data: unknown;
+  requestId: string;
+}
+
+interface FalQueueVideoClient {
+  subscribe(
+    endpointId: string,
+    options: {
+      input: Record<string, unknown>;
+      abortSignal?: AbortSignal;
+      headers?: Record<string, string>;
+      logs?: boolean;
+      mode?: "polling";
+    }
+  ): Promise<FalQueueVideoResult>;
+}
+
+interface FalQueueClientSettings {
+  proxyUrl: { url: string; when: "always" };
+  fetch: ProviderFetch;
+}
+
+type FalQueueVideoClientFactory = (
+  settings: FalQueueClientSettings
+) => FalQueueVideoClient;
+
+const createOfficialFalQueueVideoClient: FalQueueVideoClientFactory = (
+  settings
+) => {
+  const client = createFalClient(settings);
+  return {
+    subscribe: (endpointId, options) => client.subscribe(endpointId, options),
+  };
+};
+
+/**
+ * Adapt Fal's official queue client to the AI SDK video interface. Cloudflare
+ * documents this exact SDK proxy setup for provider-native Fal requests.
+ */
+export function createCloudflareFalQueueVideoModel(
+  modelId: string,
+  env: Environment = process.env,
+  createClient: FalQueueVideoClientFactory = createOfficialFalQueueVideoClient
+): FalQueueVideoModel {
+  const config = resolveCloudflareGatewayConfig(env);
+  const client = createClient({
+    proxyUrl: {
+      url: cloudflareProviderBaseURL("fal", config),
+      // @fal-ai/client applies a string proxy URL only in browsers by default.
+      when: "always",
+    },
+    // Cloudflare injects the stored Fal key. The Fal client receives no local
+    // provider credential; this fetch authenticates only the gateway request.
+    fetch: createCloudflareFalClientFetch(config.headers),
+  });
+
+  return {
+    specificationVersion: "v4",
+    provider: "fal.video",
+    modelId,
+    maxVideosPerCall: 1,
+    async doGenerate(options) {
+      const endpointId = resolveFalQueueVideoEndpoint(modelId, options.image);
+      const input = falQueueVideoInput(endpointId, options);
+      const result = await client.subscribe(endpointId, {
+        input,
+        abortSignal: options.abortSignal,
+        headers: definedHeaders(options.headers),
+        logs: false,
+        mode: "polling",
+      });
+      const response = falVideoResponse(result.data);
+
+      return {
+        videos: [
+          {
+            type: "url" as const,
+            url: response.video.url,
+            mediaType: response.video.content_type ?? "video/mp4",
+          },
+        ],
+        warnings: [],
+        providerMetadata: {
+          fal: {
+            requestId: result.requestId,
+            videos: [compactFalVideoMetadata(response.video)],
+          },
+        },
+        response: {
+          timestamp: new Date(),
+          modelId,
+          headers: result.requestId
+            ? { "x-request-id": result.requestId }
+            : undefined,
+        },
+      };
+    },
+  };
+}
+
+function resolveFalQueueVideoEndpoint(
+  modelId: string,
+  image: FalQueueVideoOptions["image"]
+): string {
+  if (/^minimax\/h3-max(?:\/(?:text|image)-to-video)?$/.test(modelId)) {
+    return `minimax/h3-max/${image ? "image" : "text"}-to-video`;
+  }
+  return modelId;
+}
+
+function falQueueVideoInput(
+  endpointId: string,
+  options: FalQueueVideoOptions
+): Record<string, unknown> {
+  const input: Record<string, unknown> = {};
+  if (options.prompt != null) input.prompt = options.prompt;
+  if (options.image != null) {
+    input.image_url =
+      options.image.type === "url"
+        ? options.image.url
+        : convertImageModelFileToDataUri(options.image);
+  }
+  if (options.aspectRatio != null) input.aspect_ratio = options.aspectRatio;
+  if (options.duration != null) input.duration = options.duration;
+  if (options.resolution != null) {
+    input.resolution = falQueueVideoResolution(endpointId, options.resolution);
+  }
+  if (options.seed != null) input.seed = options.seed;
+
+  if (endpointId.startsWith("minimax/h3-max/")) {
+    // These are the documented defaults, but H3 Max's current schema marks
+    // prompt_expansion_mode as required. Sending both keeps first calls stable.
+    input.prompt_expansion_mode = "balanced";
+    input.enable_safety_checker = true;
+  }
+
+  return input;
+}
+
+function falQueueVideoResolution(
+  endpointId: string,
+  resolution: `${number}x${number}`
+): string {
+  if (endpointId.startsWith("minimax/h3-max/")) {
+    const height = resolution.slice(resolution.indexOf("x") + 1);
+    if (height === "480" || height === "768") return `${height}P`;
+  }
+  return resolution;
+}
+
+interface FalVideoFile {
+  url: string;
+  content_type?: string | null;
+  width?: number | null;
+  height?: number | null;
+  duration?: number | null;
+  fps?: number | null;
+}
+
+function falVideoResponse(value: unknown): { video: FalVideoFile } {
+  if (!isRecord(value) || !isRecord(value.video)) {
+    throw new Error("Fal completed the request without a video result");
+  }
+  const rawVideo = value.video;
+  const url = rawVideo.url;
+  if (typeof url !== "string" || !url) {
+    throw new Error("Fal completed the request without a video URL");
+  }
+  return {
+    video: {
+      url,
+      content_type: optionalString(rawVideo.content_type),
+      width: optionalNumber(rawVideo.width),
+      height: optionalNumber(rawVideo.height),
+      duration: optionalNumber(rawVideo.duration),
+      fps: optionalNumber(rawVideo.fps),
+    },
+  };
+}
+
+function compactFalVideoMetadata(
+  video: FalVideoFile
+): Record<string, string | number> {
+  const metadata: Record<string, string | number> = { url: video.url };
+  if (video.content_type != null) metadata.contentType = video.content_type;
+  if (video.width != null) metadata.width = video.width;
+  if (video.height != null) metadata.height = video.height;
+  if (video.duration != null) metadata.duration = video.duration;
+  if (video.fps != null) metadata.fps = video.fps;
+  return metadata;
+}
+
+function definedHeaders(
+  headers: Record<string, string | undefined> | undefined
+): Record<string, string> | undefined {
+  if (!headers) return undefined;
+  return Object.fromEntries(
+    Object.entries(headers).filter(
+      (entry): entry is [string, string] => entry[1] !== undefined
+    )
+  );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function optionalString(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
+function optionalNumber(value: unknown): number | undefined {
+  return typeof value === "number" ? value : undefined;
 }
 
 /** Route provider-hosted video results back through Cloudflare BYOK. */
@@ -511,6 +757,30 @@ export function createCloudflareByokFetch(
       ...init,
       headers: cloudflareGatewayHeaders(requestHeaders(input, init)),
     });
+  };
+
+  return Object.assign(cloudflareFetch, {
+    preconnect: fetchFunction.preconnect,
+  });
+}
+
+/** Authenticate Fal's SDK proxy without presenting the Cloudflare token as a Fal key. */
+export function createCloudflareFalClientFetch(
+  gatewayHeaders: Record<string, string>,
+  fetchFunction: ProviderFetch = globalThis.fetch
+): ProviderFetch {
+  const cloudflareFetch = async (
+    input: Parameters<ProviderFetch>[0],
+    init?: Parameters<ProviderFetch>[1]
+  ): Promise<Response> => {
+    const url = requestURL(input);
+    if (!isCloudflareGatewayURL(url)) return fetchFunction(input, init);
+
+    const headers = cloudflareGatewayHeaders(requestHeaders(input, init));
+    for (const [name, value] of Object.entries(gatewayHeaders)) {
+      headers.set(name, value);
+    }
+    return fetchFunction(input, { ...init, headers });
   };
 
   return Object.assign(cloudflareFetch, {

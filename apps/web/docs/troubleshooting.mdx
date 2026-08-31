@@ -23,9 +23,11 @@ The gateway ID defaults to `ai-cli`. `CLOUDFLARE_API_TOKEN` is a fallback when `
 
 For an upstream `401` or `403`, confirm that the provider credential is active under the gateway's **Provider Keys** page and uses the `default` alias. Do not add a local provider API key: Cloudflare mode strips provider authorization and relies on BYOK.
 
-Nested provider IDs keep the route prefix and creator or owner, for example `openrouter/anthropic/claude-sonnet-4`, `replicate/prunaai/p-video`, or `fal/fal-ai/flux/schnell`.
+Nested provider IDs keep the route prefix and creator or owner, for example `openrouter/anthropic/claude-sonnet-4`, `replicate/prunaai/p-video`, or `fal/fal-ai/flux/schnell`. Fal is also accepted as `fal-ai/...`; `fal-ai/minimax/h3-max` selects the Fal host and MiniMax publisher/model.
 
 A quota, billing, or credit error comes from the stored provider account. Add credit or enable billing there; changing the Cloudflare token does not change the provider balance.
+
+Fal video generation is asynchronous. ai-cli submits the request, polls its status, fetches the result, and downloads the video; do not call Fal's status URLs manually. Provider errors include Fal's `detail` or validation fields instead of an empty `Error:` line.
 
 ## Missing Vercel API key
 

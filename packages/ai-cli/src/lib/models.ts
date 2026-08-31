@@ -241,6 +241,28 @@ export function resolveModels(
   return models.length > 0 ? models : [validateModelId(DEFAULTS[modality])];
 }
 
+/**
+ * Fetch discovery data only for short aliases. Defaults and full IDs already
+ * contain everything needed to route a request and should work offline.
+ */
+export async function resolveCommandModels(
+  modality: Modality,
+  userModel?: string
+): Promise<string[]> {
+  if (!needsModelDiscovery(userModel))
+    return resolveModels(modality, userModel);
+  const gatewayModels = await fetchGatewayModels();
+  return resolveModels(modality, userModel, gatewayModels[modality]);
+}
+
+export function needsModelDiscovery(userModel?: string): boolean {
+  if (!userModel) return false;
+  return userModel
+    .split(",")
+    .map((modelId) => modelId.trim())
+    .some((modelId) => modelId.length > 0 && !modelId.includes("/"));
+}
+
 function validateModelId(modelId: string): string {
   // The Gateway SDK sends model IDs in an HTTP header. Validate before the SDK
   // turns an invalid header value into a retried GatewayResponseError.
