@@ -60,16 +60,6 @@ Use **bun** for all package management and script execution:
 - `bun run <script>` to run package.json scripts
 - `bun test` to run tests
 
-## Installing Packages
-
-Before installing any npm package, always check the latest version first:
-
-```sh
-npm view <package> version
-```
-
-Then install that specific version (e.g. `bun add --cwd packages/ai-cli <package>@<version>`). Never blindly install without verifying the latest version.
-
 ## Documentation
 
 When making any user-facing change (new command, new flag, changed behavior, renamed option, release note, website copy change, etc.), update every relevant user-facing documentation surface in the same PR:
@@ -79,17 +69,15 @@ When making any user-facing change (new command, new flag, changed behavior, ren
 - `apps/web/components/landing/` and other website copy when the landing page or marketing copy should reflect the change
 - `CHANGELOG.md` for release-facing changes
 
-A user-facing change without matching README and website/docs updates is incomplete.
 
 ## Type Checking
 
-Run the type checker after every agent turn:
 
 ```sh
 bun run typecheck
 ```
 
-This runs `turbo run typecheck` across all workspaces and ensures no type errors have been introduced. Fix any type errors before moving on.
+This runs `turbo run typecheck` across all workspaces and ensures no type errors have been introduced.
 
 ## Deployment
 
