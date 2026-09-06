@@ -56,6 +56,7 @@ export interface RunJobsResult {
 export interface GeneratedOutput {
   data: Buffer | string;
   id?: string;
+  mediaType?: string;
 }
 
 type GenerateResult = Buffer | string | GeneratedOutput;
@@ -98,6 +99,7 @@ export async function runJobs(
           outputPath,
           outputId: generated.id,
           extension,
+          mediaType: generated.mediaType,
           forceFile: true,
           quiet: true,
           display: false,
@@ -123,6 +125,7 @@ export async function runJobs(
           outputPath,
           outputId: generated.id,
           extension,
+          mediaType: generated.mediaType,
           quiet,
           display,
         });
@@ -186,12 +189,14 @@ export async function runJobs(
           outputId: generated.id,
           suffix,
           extension,
+          mediaType: generated.mediaType,
           forceFile: Boolean(json),
           quiet: true,
           display: false,
         });
-        if (shouldDisplay && Buffer.isBuffer(generated.data))
+        if (shouldDisplay && Buffer.isBuffer(generated.data)) {
           pendingDisplayBuffers.push(generated.data);
+        }
         const savedMsg = path
           ? `Saved to ${path}`
           : `${noun[0].toUpperCase()}${noun.slice(1)} ${job.label} written to stdout`;
@@ -256,11 +261,11 @@ export async function runJobs(
     await afterOutputs?.([...outputs].sort((a, b) => a.index - b.index));
   }
 
-  for (const buf of pendingDisplayBuffers) {
+  for (const data of pendingDisplayBuffers) {
     if (format === "video") {
-      await displayVideoFrame(buf);
+      await displayVideoFrame(data);
     } else {
-      displayImage(buf);
+      await displayImage(data);
     }
   }
 

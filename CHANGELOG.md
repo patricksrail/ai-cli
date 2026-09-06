@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Upstream 0.4.4 sync** - Includes JPEG/WebP terminal previews while preserving fork routing and response IDs; fork pushes do not publish the upstream npm package
+
 ### New Features
 
 - **Central provider registry** - Routing capabilities and `ai providers --all` share provider auth, billing nuances and official sources
@@ -17,7 +19,6 @@
 - **Provider-aware discovery** - `ai models` summarizes configured Cloudflare BYOK providers; live catalogs preserve full route IDs, with `--provider`, `--search`, `--limit`, `--all`, and an advertised `--free` filter for zero-priced OpenRouter text models
 - **Explicit routing flags** - Every generation command accepts `--gateway` and `--provider`; Cloudflare image generation with full IDs no longer fetches Vercel metadata, and explicit Vercel mode uses upstream defaults
 
-- **Video resolution** - `ai video --resolution <WxH>` requests an explicit output resolution such as `1920x1080` from supported video models
 - **Cloudflare AI Gateway default** - This fork routes text, image, video, speech and transcription through the authenticated `ai-cli` Cloudflare gateway by default; set `AI_CLI_GATEWAY=vercel` for upstream Vercel routing
 - **Fal media support** - Cloudflare mode supports Fal image, video, speech, and transcription models with full IDs such as `fal/fal-ai/flux/schnell`
 - **MiniMax H3 Max through Fal** - `ai video -m fal-ai/minimax/h3-max` uses Fal's official queue client through Cloudflare and selects text-to-video or image-to-video from the input
@@ -42,9 +43,26 @@
 - **Provider error details** - Structured `detail`, validation, and nested provider errors are shown instead of blank error messages
 - **Bundled video downloads** - The CLI declares the safe downloader's `undici` runtime dependency so provider-hosted MP4 downloads work from the built executable
 
-## 0.4.3
+## 0.4.4
 
 <!-- release:start -->
+
+### New Features
+
+- **Video resolution** - `ai video --resolution <WxH>` requests an explicit output resolution such as `1920x1080` from supported video models
+
+### Bug Fixes
+
+- **Non-PNG image previews** - image models that return JPEG or WebP data now display correctly in Kitty-compatible terminals while preserving the original format in saved files
+
+### Contributors
+
+- @Railly
+- @ctate
+
+<!-- release:end -->
+
+## 0.4.3
 
 ### New Features
 
@@ -63,11 +81,7 @@
 - @Railly
 - @ctate
 
-<!-- release:end -->
-
 ## 0.4.2
-
-<!-- release:start -->
 
 ### New Features
 
@@ -77,11 +91,7 @@
 
 - @ctate
 
-<!-- release:end -->
-
 ## 0.4.1
-
-<!-- release:start -->
 
 ### Bug Fixes
 
@@ -91,11 +101,7 @@
 
 - @ctate
 
-<!-- release:end -->
-
 ## 0.4.0
-
-<!-- release:start -->
 
 ### New Features
 
@@ -116,11 +122,7 @@
 - @piotrjoniec
 - @ctate
 
-<!-- release:end -->
-
 ## 0.3.1
-
-<!-- release:start -->
 
 ### New Features
 
@@ -135,11 +137,7 @@
 
 - @ctate
 
-<!-- release:end -->
-
 ## 0.3.0
-
-<!-- release:start -->
 
 ### New Features
 
@@ -150,11 +148,7 @@
 
 - @ctate
 
-<!-- release:end -->
-
 ## 0.2.1
-
-<!-- release:start -->
 
 ### Bug Fixes
 
@@ -168,11 +162,7 @@
 
 - @ctate
 
-<!-- release:end -->
-
 ## 0.2.0
-
-<!-- release:start -->
 
 ### New Features
 
@@ -204,11 +194,7 @@
 - @ctate
 - @dancer
 
-<!-- release:end -->
-
 ## 0.1.1
-
-<!-- release:start -->
 
 ### Improvements
 
@@ -217,8 +203,6 @@
 ### Contributors
 
 - @ctate
-
-<!-- release:end -->
 
 ## 0.1.0
 
@@ -229,5 +213,3 @@
 - H.264 keyframe decoding via OpenH264 WASM — no native dependencies required
 - Stdin piping support for chaining commands
 - Shell completions for bash, zsh, and fish
-
-<!-- release:end -->

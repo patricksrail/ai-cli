@@ -155,3 +155,7 @@ git status --short --branch
 ```
 
 Confirm `origin/main` points at the local commit before deleting the sync branch. Push to `origin`, not `upstream`.
+
+## Release workflow
+
+The upstream release workflow publishes `ai-cli` to npm and creates a GitHub release on pushes to main. This fork gates its release check to `vercel-labs/ai-cli`; normal pushes to Patrick's fork must not publish the upstream package. Preserve that repository guard during syncs. Upstream 0.4.4 requires exactly one `release:start`/`release:end` marker pair and a matching version heading in CHANGELOG.md. Keep fork Unreleased notes outside the upstream release markers.

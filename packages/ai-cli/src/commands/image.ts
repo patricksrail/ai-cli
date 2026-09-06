@@ -203,6 +203,7 @@ export function registerImageCommand(program: Command) {
               id:
                 responseIdFromHeaders(result.response.headers) ??
                 result.response.id,
+              mediaType: imageFile.mediaType,
             };
           }
 
@@ -223,6 +224,7 @@ export function registerImageCommand(program: Command) {
           return {
             data: Buffer.from(result.image.uint8Array),
             id: responseIdFromHeaders(result.responses[0]?.headers),
+            mediaType: result.image.mediaType,
           };
         },
         {

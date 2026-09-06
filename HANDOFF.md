@@ -116,3 +116,9 @@ Cloudflare provides 10,000 neurons/day, equivalent to $0.11 at $0.011/1,000 neur
 The active token is now named `CLI - Wrangler, ai-cli, GitHub, Claude and Codex`. Workers AI Read (inference) and Workers AI Metadata Read (catalogs) were added without rotating the secret. `wrangler ai models` works. Patrick also authorized a $20 cap scoped only to Workers AI on gateway `ai-cli`; enabled rule `f300261b` uses a rolling 30-day window. The cap remains configured, but the CLI integration is disabled. No prepaid credits or plan changes were made.
 
 Live Workers AI evidence: gateway log `01M1W75PCJA4VQ3WE03GYF2ER1` records the successful image at 2026-09-06T20:39:50.202Z. Before disabling the route, Wrangler 4.129.0 catalog listing and installed CLI generation passed; the output was an inspected 1024×1024 JPEG. Explicit `--free` refused inference on this Paid account. The [provider guide](docs/providers.md#schnell-image-cost-comparison) compares this usage with Fal pricing.
+
+## Upstream 0.4.4 verification (2026-09-06)
+
+Merged upstream through `bf0fd2a`, including JPEG/WebP Kitty previews; retained the fork provider SDK versions, response IDs, auth launcher and instruction symlinks. Full checks passed: 287 CLI tests and 20 web tests, format, typecheck, CLI/web builds; lint reports 25 existing warnings and no errors. The installed Fal Sana command produced a 512×512 JPEG after the merge.
+
+Live text checks for direct Google Gemini 2.5 Flash Lite, the same model through OpenRouter, and default Gemini 3.8 Flash all failed with Cloudflare's `Model or provider could not be resolved for spend-limit enforcement`. Gateway readback still shows the enabled Workers AI-only cap. This is an account/gateway runtime blocker; passing unit tests or catalogs does not resolve it. Disabling the cap to isolate the cause requires Patrick's answer because it also removes protection for other clients using this gateway. Workers AI remains disabled in the CLI.
