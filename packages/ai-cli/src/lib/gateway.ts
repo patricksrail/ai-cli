@@ -658,7 +658,7 @@ export function withCloudflareFalTranscriptionDefaults(
   return model;
 }
 
-function createCloudflareProviders(env: Environment = process.env) {
+export function createCloudflareProviders(env: Environment = process.env) {
   const config = resolveCloudflareGatewayConfig(env);
   const replicateBaseURL = cloudflareProviderBaseURL("replicate", config);
   const falBaseURL = cloudflareProviderBaseURL("fal", config);
