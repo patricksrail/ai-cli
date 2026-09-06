@@ -1,6 +1,6 @@
 ---
 date_created: 2026-08-30
-date_updated: 2026-08-30
+date_updated: 2026-09-06
 summary: Safe procedure for merging vercel-labs/ai-cli updates into Patrick's Cloudflare BYOK fork.
 related:
   - ../CLAUDE.md
@@ -9,6 +9,8 @@ related:
 ---
 
 # Syncing the Upstream Repository
+
+The [fork customization map](../packages/ai-cli/src/fork/README.md) lists the policy files and the small integration points outside that folder.
 
 This fork tracks [`vercel-labs/ai-cli`](https://github.com/vercel-labs/ai-cli) as `upstream` and Patrick's fork as `origin`. Merge `upstream/main` into a short-lived branch, verify Cloudflare BYOK behavior, then fast-forward `main`. Do not rebase or force-push the published fork commits.
 
@@ -51,7 +53,8 @@ Resolve conflicts one hunk at a time. Preserve upstream behavior unless it confl
 - Cloudflare is the default gateway; `AI_CLI_GATEWAY=vercel` remains the explicit upstream-compatible path.
 - The default Cloudflare gateway ID is `ai-cli`.
 - Provider credentials stay in Cloudflare Provider Keys. Cloudflare mode sends gateway authentication and strips local provider authorization.
-- Working no-model defaults use the live-tested BYOK routes recorded in `packages/ai-cli/src/lib/models.ts`.
+- Working no-model Cloudflare defaults use the live-tested BYOK routes in `packages/ai-cli/src/fork/model-preferences.json`; upstream Vercel defaults remain in `packages/ai-cli/src/lib/models.ts`.
+- Keep `packages/ai-cli/src/fork/` as the fork-owned discovery and routing-option layer. Preserve the small registration hooks in the command files and backend selection in `lib/models.ts`; do not restore unconditional Vercel discovery or strip host prefixes from Cloudflare listings.
 - Fal, Replicate, Google, and OpenRouter asynchronous and media URLs continue through the Cloudflare routing rules in `packages/ai-cli/src/lib/gateway.ts`.
 - `AGENTS.md` remains a relative symlink to `CLAUDE.md`; root `README.md` remains a relative symlink to `packages/ai-cli/README.md`.
 
@@ -89,7 +92,7 @@ If the frozen install reports a real manifest/lockfile mismatch introduced by co
 
 ## 5. Smoke-Test the Built CLI Through Cloudflare
 
-On Patrick's Mac, load Cloudflare account authentication, remove all local provider credentials, rebuild the linked command, and test both direct Google and OpenRouter paths to the same Gemini model:
+On Patrick's Mac, preserve the `~/.local/bin/ai` link to `scripts/mac-ai.mjs` for automatic local auth loading. For the explicit authentication smoke test below, load Cloudflare account authentication, remove all local provider credentials, rebuild the linked command, and test both direct Google and OpenRouter paths to the same Gemini model:
 
 ```bash
 set -a

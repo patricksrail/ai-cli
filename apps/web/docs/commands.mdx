@@ -265,41 +265,80 @@ cat recording.mp3 | ai audio transcribe
 
 ## models
 
-List available models from the AI Gateway, or show detailed info for one model.
+Show configured providers and defaults, or browse live catalogs with full model route IDs.
 
 ```bash
 ai models
-ai models --type image
-ai models --creator openai --json
-ai models claude-opus-4.6
-ai models anthropic/claude-opus-4.6 --json
+ai models --free
+ai models --provider openrouter --search gemini
+ai models --type image --limit 50
+ai models --provider openrouter --all --json
+ai models openrouter/google/gemini-2.5-flash-lite
 ```
-
-### Arguments
 
 <Properties>
   <Property name="[model]" type="string">
-    Model ID or short name. Shows a detail card with context window, max
-    output, pricing (input, output, cache read/write, web search), release
-    date and per-provider latency, throughput and uptime.
+    Full route ID or unambiguous short name. Show available model metadata and pricing.
   </Property>
-</Properties>
-
-### Options
-
-<Properties>
-  <Property name="--type" type="text | image | video | audio | speech | transcription">
-    Filter by modality (list mode only).
+  <Property name="--gateway" type="cloudflare | vercel">
+    Gateway backend; overrides AI_CLI_GATEWAY.
+  </Property>
+  <Property name="--provider" type="string">
+    Host: openrouter, google, openai, fal, or replicate.
   </Property>
   <Property name="--creator" type="string">
-    Filter by creator (e.g. `openai`, `google`) (list mode only).
+    Filter by model author, such as google within OpenRouter.
+  </Property>
+  <Property name="--type" type="text | image | video | audio | speech | transcription">
+    Filter by modality.
+  </Property>
+  <Property name="--search" type="string">
+    Search IDs, names, and descriptions.
+  </Property>
+  <Property name="--free" type="boolean">
+    OpenRouter zero-price text models, Google free-tier eligible models, and Workers AI images with verified free-only billing. Provider billing and quota conditions apply.
+  </Property>
+  <Property name="--best" type="boolean">
+    Show saved best choices; combine with --free for best-free choices.
+  </Property>
+  <Property name="--cheapest" type="boolean">
+    Show saved low-cost model choices.
+  </Property>
+  <Property name="--all" type="boolean">
+    Show every match and fetch all Replicate pages.
+  </Property>
+  <Property name="--limit" type="integer">
+    Maximum matches to display; filtered text defaults to 20.
   </Property>
   <Property name="--json" type="boolean">
-    Output as JSON with descriptions.
+    JSON array; only truncated by an explicit --limit.
   </Property>
 </Properties>
 
-Models are fetched live from the AI Gateway.
+Cloudflare discovery uses stored provider keys. Replicate starts with one catalog page unless `--all` is supplied; use `--provider replicate --search` for native search. Partial coverage and failed providers are reported on stderr. See [Models](/docs/models) for catalog scope, pricing, and account-access details. The provider, free, best, cheapest, search, and limit options are Cloudflare-only; Vercel preserves its original listing.
+
+## Gateway and provider options
+
+Every generation command above accepts these options after its command name:
+
+<Properties>
+  <Property name="--gateway" type="cloudflare | vercel">
+    Defaults to Cloudflare; overrides AI_CLI_GATEWAY.
+  </Property>
+  <Property name="--provider" type="string">
+    Select a Cloudflare provider and supply its native ID with --model. Without --provider, --model takes the full route ID.
+  </Property>
+</Properties>
+
+```bash
+ai text --provider openrouter -m google/gemini-2.5-flash-lite "hello"
+ai image --provider fal -m fal-ai/flux/schnell "a sunset"
+ai video --provider replicate -m prunaai/p-video "a paper airplane"
+ai audio speak --provider fal -m fal-ai/minimax/speech-02-turbo "hello"
+ai audio transcribe --provider fal -m fal-ai/wizper recording.mp3
+```
+
+Provider selection requires `--model` or a selection flag and is Cloudflare-only. `--provider openrouter -m openrouter/free` is equivalent to the full route ID `-m openrouter/openrouter/free`.
 
 ---
 
@@ -330,3 +369,26 @@ ai image --timeout 600 "a detailed sprite atlas"
 | `0` | Success |
 | `1` | All generations failed |
 | `2` | Partial failure (some succeeded, some failed) |
+
+
+## Model selection and diagnostics
+
+All generation commands advertise `--best`, `--free`, and `--cheapest`. Plain text defaults to direct Google 3.8 Flash. `--best` uses saved preferences; `--best --free` selects a saved free preference that is currently listed. `--free` selects OpenRouter zero-price or Google free-tier eligible models. `--cheapest` uses the saved low-cost preference: GPT-5.6 Luna through OpenRouter for text. For images, `--cheapest` selects Sana through Fal; add `--size 512x512` for a small draft. Other unset media preferences require an explicit model or a preference edit. No paid fallback happens automatically. See [Models](/docs/models) for pricing scope and the editable preference file.
+
+```bash
+ai text --free "hello"
+ai text --best "review this"
+ai text --cheapest "hello"
+ai video --best "a boat crosses a lake"
+ai gateways
+ai providers
+ai doctor
+ai doctor --probe --model google/gemini-3.8-flash
+ai providers google/gemni-2.5-flash-lite
+```
+
+`gateways` shows override choices. `providers` lists configured hosts, or matching alternatives when given a full model ID; use `--type video` for media alternatives. `doctor` checks setup/catalog access, supports `--provider` and `--gateway`, and only sends inference with `--probe`. A probe may incur cost. `--model` requires `--probe`; failed checks produce a nonzero exit code. Each diagnostic command supports `--json`. Failed generation suggests catalog alternatives rather than automatically retrying another host.
+
+`ai providers --all` shows a compact overview without requiring credentials. Add `--details` for authentication, billing notes, full provider catalogs, canonical pricing links and sources. JSON retains the complete metadata. Workers AI integration is disabled by choice. Its retained image adapter uses Cloudflare-hosted FLUX.1 Schnell through the existing gateway; ordinary generation requires a verified free plan or Workers AI spending cap; `--free` requires the free plan. Check it with `ai doctor --provider workers-ai`.
+
+Human output uses bold provider names, terminal colors and grouped command examples. Capability lists are under `ai providers --details`; JSON retains them. Piped output is plain text; set `NO_COLOR=1` to disable terminal styling.

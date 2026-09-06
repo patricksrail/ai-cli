@@ -293,3 +293,93 @@ describe("cli integration", () => {
     expect(stderr).toContain("cannot be used with a model argument");
   });
 });
+
+describe("fork command help", () => {
+  test.each(["text", "image", "video", "audio speak", "audio transcribe"])(
+    "routing flags for %s",
+    async (command: string) => {
+      const result = await run(...command.split(" "), "--help");
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("--gateway");
+      expect(result.stdout).toContain("--provider");
+      expect(result.stdout).toContain("openrouter");
+    }
+  );
+  test("root and models help advertise free models", async () => {
+    expect((await run("--help")).stdout).toContain("--free");
+    const result = await run("models", "--help");
+    for (const flag of [
+      "--free",
+      "--provider",
+      "--search",
+      "--all",
+      "--limit",
+      "--gateway",
+    ])
+      expect(result.stdout).toContain(flag);
+  });
+});
+
+describe("diagnostics and selection help", () => {
+  test("root help separates defaults, overrides and discovery", async () => {
+    const result = await run("--help");
+    expect(result.stdout).toContain(
+      "Default gateway: cloudflare.\nUse --gateway"
+    );
+    expect(result.stdout).toContain("google/gemini-3.8-flash");
+    for (const command of ["doctor", "gateways", "providers"])
+      expect(result.stdout).toContain(command);
+  });
+  test.each(["text", "image", "video", "audio speak", "audio transcribe"])(
+    "selection options for %s",
+    async (command: string) => {
+      const result = await run(...command.split(" "), "--help");
+      for (const flag of ["--free", "--best", "--cheapest"])
+        expect(result.stdout).toContain(flag);
+    }
+  );
+  test("gateway choices are available without credentials", async () => {
+    const result = await run("gateways", "--json");
+    expect(result.exitCode).toBe(0);
+    expect(
+      JSON.parse(result.stdout).map((row: { id: string }) => row.id)
+    ).toEqual(["cloudflare", "vercel"]);
+  });
+  test("saved best choices are available without inference", async () => {
+    const result = await run("models", "--best", "--json");
+    expect(result.exitCode).toBe(0);
+    expect(
+      JSON.parse(result.stdout).some(
+        (row: { id: string }) => row.id === "fal/minimax/h3-max"
+      )
+    ).toBe(true);
+  });
+});
+
+test("all provider nuances and sources are available without credentials", async () => {
+  const result = await run("providers", "--all", "--json");
+  expect(result.exitCode).toBe(0);
+  const rows = JSON.parse(result.stdout);
+  expect(
+    rows.find((row: { id: string }) => row.id === "workers-ai").nuance
+  ).toContain("--free");
+  expect(
+    rows.every((row: { sources: string[] }) => row.sources.length > 0)
+  ).toBe(true);
+  expect(
+    rows.every((row: { catalogUrl: string }) =>
+      row.catalogUrl.startsWith("https://")
+    )
+  ).toBe(true);
+});
+
+test("provider overview is compact and details retain catalog links", async () => {
+  const overview = await run("providers", "--all");
+  expect(overview.exitCode).toBe(0);
+  expect(overview.stdout.trim().split("\n").length).toBeLessThan(30);
+  expect(overview.stdout).toContain("--details");
+  expect(overview.stdout).not.toContain("https://");
+  const details = await run("providers", "--all", "--details");
+  expect(details.exitCode).toBe(0);
+  expect(details.stdout).toContain("Catalog: https://openrouter.ai/models");
+});

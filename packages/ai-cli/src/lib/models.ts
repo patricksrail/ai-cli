@@ -1,13 +1,14 @@
+import { asGatewayModels, fetchCloudflareCatalog } from "../fork/catalog.js";
+import { resolveDefaultModel } from "../fork/defaults.js";
+import { resolveGatewayBackend } from "./gateway.js";
 export type Modality = "text" | "image" | "video" | "speech" | "transcription";
 
 const DEFAULTS: Record<Modality, string> = {
-  text:
-    process.env.AI_CLI_TEXT_MODEL ?? "openrouter/google/gemini-2.5-flash-lite",
-  image: process.env.AI_CLI_IMAGE_MODEL ?? "fal/fal-ai/flux/schnell",
-  video: process.env.AI_CLI_VIDEO_MODEL ?? "replicate/prunaai/p-video",
-  speech:
-    process.env.AI_CLI_SPEECH_MODEL ?? "fal/fal-ai/minimax/speech-02-turbo",
-  transcription: process.env.AI_CLI_TRANSCRIPTION_MODEL ?? "fal/fal-ai/wizper",
+  text: process.env.AI_CLI_TEXT_MODEL ?? "openai/gpt-5.5",
+  image: process.env.AI_CLI_IMAGE_MODEL ?? "openai/gpt-image-2",
+  video: process.env.AI_CLI_VIDEO_MODEL ?? "bytedance/seedance-2.0",
+  speech: process.env.AI_CLI_SPEECH_MODEL ?? "openai/tts-1",
+  transcription: process.env.AI_CLI_TRANSCRIPTION_MODEL ?? "openai/whisper-1",
 };
 
 const GATEWAY_MODELS_URL = "https://ai-gateway.vercel.sh/v1/models";
@@ -91,6 +92,13 @@ interface RawGatewayModel {
 let cached: Promise<GatewayModels> | null = null;
 
 export function fetchGatewayModels(): Promise<GatewayModels> {
+  if (resolveGatewayBackend() === "cloudflare")
+    return fetchCloudflareCatalog().then((catalog) => {
+      for (const note of catalog.notes) process.stderr.write(`Note: ${note}\n`);
+      for (const warning of catalog.warnings)
+        process.stderr.write(`Warning: ${warning}; catalog incomplete\n`);
+      return asGatewayModels(catalog.entries);
+    });
   if (!cached) {
     cached = doFetch().catch((err) => {
       cached = null;
@@ -198,6 +206,7 @@ async function doFetch(): Promise<GatewayModels> {
 export async function fetchModelEndpoints(
   modelId: string
 ): Promise<ModelEndpointsInfo | null> {
+  if (resolveGatewayBackend() === "cloudflare") return null;
   try {
     const res = await fetch(`${GATEWAY_MODELS_URL}/${modelId}/endpoints`, {
       signal: AbortSignal.timeout(GATEWAY_TIMEOUT_MS),
@@ -232,13 +241,16 @@ export function resolveModels(
   userModel?: string,
   knownModels?: Pick<ModelEntry, "id">[]
 ): string[] {
-  if (!userModel) return [validateModelId(DEFAULTS[modality])];
+  if (!userModel)
+    return [validateModelId(resolveDefaultModel(modality, DEFAULTS))];
   const models = userModel
     .split(",")
     .map((m) => m.trim())
     .filter(Boolean)
     .map((m) => validateModelId(expandModelId(m, knownModels)));
-  return models.length > 0 ? models : [validateModelId(DEFAULTS[modality])];
+  return models.length > 0
+    ? models
+    : [validateModelId(resolveDefaultModel(modality, DEFAULTS))];
 }
 
 /**
@@ -280,6 +292,15 @@ export function expandModelId(
 ): string {
   if (input.includes("/")) return input;
   if (!knownModels) return input;
+
+  if (resolveGatewayBackend() === "cloudflare") {
+    const matches = knownModels.filter((m) => m.id.split("/").at(-1) === input);
+    if (matches.length > 1)
+      throw new Error(
+        `Ambiguous model ${input}; use a full ID: ${matches.map((m) => m.id).join(", ")}`
+      );
+    return matches[0]?.id ?? input;
+  }
 
   for (const m of knownModels) {
     const name = m.id.slice(m.id.indexOf("/") + 1);

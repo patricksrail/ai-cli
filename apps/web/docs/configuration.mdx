@@ -4,13 +4,19 @@ description: Environment variables and defaults.
 order: 5
 ---
 
-ai-cli is configured entirely through environment variables. There is no config file.
+ai-cli uses environment variables and per-command flags. Model preferences can also be loaded from an optional JSON file.
 
 ## Environment variables
 
 <Properties>
   <Property name="AI_CLI_GATEWAY" type="vercel | cloudflare">
     Gateway backend. Defaults to `cloudflare`.
+  </Property>
+  <Property name="AI_CLI_MODEL_PREFERENCES" type="path">
+    Optional JSON override for defaults, best, cheapest, and bestFree model preferences. Bundled choices live in src/fork/model-preferences.json.
+  </Property>
+  <Property name="AI_CLI_PROVIDERS" type="string">
+    Optional comma-separated stored provider inventory for Run-only tokens. Otherwise discovery reads Cloudflare Provider Keys using a token with AI Gateway Read permission.
   </Property>
   <Property name="AI_GATEWAY_API_KEY" type="string">
     Vercel AI Gateway API key. Provides access to all supported models.
@@ -23,14 +29,14 @@ ai-cli is configured entirely through environment variables. There is no config 
   </Property>
   <Property name="CLOUDFLARE_AI_GATEWAY_TOKEN" type="string">
     Preferred Cloudflare authentication token. Required in Cloudflare mode and
-    must grant AI Gateway Run.
+    must grant AI Gateway Run. Automatic provider discovery also uses this token for AI Gateway Read when supplied.
   </Property>
   <Property name="CLOUDFLARE_API_TOKEN" type="string">
     Fallback Cloudflare token when `CLOUDFLARE_AI_GATEWAY_TOKEN` is unset. It
     must grant AI Gateway Run.
   </Property>
   <Property name="AI_CLI_TEXT_MODEL" type="string">
-    Default text model. Overrides `openrouter/google/gemini-2.5-flash-lite`.
+    Default text model. Overrides `google/gemini-3.8-flash`.
   </Property>
   <Property name="AI_CLI_IMAGE_MODEL" type="string">
     Default image model. Overrides `fal/fal-ai/flux/schnell`.
@@ -60,6 +66,10 @@ ai-cli is configured entirely through environment variables. There is no config 
 
 ## Precedence
 
+- `--gateway` overrides `AI_CLI_GATEWAY`.
+- `--provider` selects a Cloudflare host; `-m` then takes its native model ID, or selection flags restrict candidates to that host.
+
+- `--best`, `--free`, or `--cheapest` selects a model independently of the normal default; `--free -m <full-id>` also validates a specific free route.
 - `-m` flag always takes priority over `AI_CLI_*_MODEL` env vars.
 - `-o` flag always takes priority over `AI_CLI_OUTPUT_DIR`.
 - `--no-preview` takes priority over `AI_CLI_PREVIEW`.
@@ -83,3 +93,7 @@ export AI_GATEWAY_API_KEY="your-vercel-gateway-key"
 ```
 
 The default Cloudflare backend requires an [authenticated gateway](https://developers.cloudflare.com/ai-gateway/configuration/authentication/). Store OpenAI, Google AI Studio, OpenRouter, Replicate, and Fal credentials in the gateway's **Provider Keys** page with the `default` alias. ai-cli does not read or forward local provider keys or provider authorization headers.
+
+Patrick’s local Mac launcher loads Cloudflare auth defaults from the existing canonical local setup and preserves explicit environment overrides. The portable npm CLI still requires configured Cloudflare environment variables; it does not assume a user-specific credential path.
+
+Workers AI integration is disabled in the provider registry by choice. Its retained adapter uses `CLOUDFLARE_API_TOKEN` with Workers AI Metadata Read for catalogs and Workers AI Read for inference. It verifies gateway spending caps for ordinary generation, or account subscriptions for free-only use. A gateway Run-only token is insufficient. Prepaid billing is refused; the adapter never changes plans or buys credits.

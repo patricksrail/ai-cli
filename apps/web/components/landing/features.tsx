@@ -34,19 +34,13 @@ const pipingrows: readonly row[] = [
 ];
 
 const modelrows: readonly row[] = [
-  { tone: "cmd", text: "$ ai models --type audio" },
+  { tone: "cmd", text: "$ ai models --free" },
+  { tone: "dim", text: "Gateway: cloudflare" },
+  { tone: "code", text: "  openrouter/openrouter/free  [text]  FREE" },
+  { tone: "dim", text: "Free models have rate limits. Copy full IDs with -m." },
   { tone: "dim", text: "" },
-  { tone: "dim", text: "Speech models (8):" },
-  { tone: "dim", text: "" },
-  { tone: "dim", text: "  openai" },
-  { tone: "code", text: "    tts-1" },
-  { tone: "code", text: "    gpt-4o-mini-tts" },
-  { tone: "dim", text: "" },
-  { tone: "dim", text: "Transcription models (4):" },
-  { tone: "dim", text: "" },
-  { tone: "dim", text: "  openai" },
-  { tone: "code", text: "    whisper-1" },
-  { tone: "dim", text: "  ...and more" },
+  { tone: "cmd", text: "$ ai models --provider openrouter --search gemini" },
+  { tone: "code", text: "  openrouter/google/gemini-2.5-flash-lite  [text]" },
 ];
 
 function rowstyle(tone: row["tone"]): string {
@@ -163,7 +157,7 @@ export function Features() {
             bullets={[
               "route directly to Google, OpenAI, OpenRouter, Replicate, or Fal",
               "keep provider credentials out of the CLI environment",
-              "select the upstream Vercel gateway explicitly when needed",
+              "browse providers, check setup with ai doctor, and choose --free or --best",
             ]}
             window={<Panel rows={modelrows} />}
           />

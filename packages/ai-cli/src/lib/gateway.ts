@@ -20,6 +20,15 @@ import {
   type TranscriptionModel,
 } from "ai";
 
+import {
+  PROVIDER_REGISTRY,
+  assertProviderEnabled,
+  PROVIDERS,
+  providersFor,
+  type ProviderId,
+} from "../fork/providers.js";
+import { workersAIImage } from "../fork/workers-ai.js";
+
 type Environment = Record<string, string | undefined>;
 
 export type GatewayBackend = "vercel" | "cloudflare";
@@ -29,12 +38,7 @@ export type GatewayModality =
   | "video"
   | "speech"
   | "transcription";
-export type CloudflareProvider =
-  | "openai"
-  | "google"
-  | "openrouter"
-  | "replicate"
-  | "fal";
+export type CloudflareProvider = ProviderId;
 
 export interface CloudflareGatewayConfig {
   accountId: string;
@@ -47,13 +51,9 @@ export interface CloudflareModelRoute {
   modelId: string;
 }
 
-const EXPLICIT_PROVIDER_PREFIXES = new Map<string, CloudflareProvider>([
-  ["openai", "openai"],
-  ["google", "google"],
-  ["openrouter", "openrouter"],
-  ["replicate", "replicate"],
-  ["fal", "fal"],
-]);
+const EXPLICIT_PROVIDER_PREFIXES = new Map<string, CloudflareProvider>(
+  PROVIDERS.map((id) => [id, id])
+);
 
 // Provider SDKs require a credential even when Cloudflare supplies the real
 // provider key from BYOK. This value is removed before every gateway request.
@@ -103,18 +103,9 @@ export function cloudflareProviderBaseURL(
   config: Pick<CloudflareGatewayConfig, "accountId" | "gatewayId">
 ): string {
   const gatewayURL = `https://gateway.ai.cloudflare.com/v1/${config.accountId}/${config.gatewayId}`;
-  switch (provider) {
-    case "openai":
-      return `${gatewayURL}/openai`;
-    case "google":
-      return `${gatewayURL}/google-ai-studio/v1beta`;
-    case "openrouter":
-      return `${gatewayURL}/openrouter/v1`;
-    case "replicate":
-      return `${gatewayURL}/replicate`;
-    case "fal":
-      return `${gatewayURL}/fal`;
-  }
+  if (provider === "workers-ai")
+    return `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/ai`;
+  return `${gatewayURL}/${PROVIDER_REGISTRY[provider].path}`;
 }
 
 /**
@@ -164,11 +155,7 @@ export function routeCloudflareModel(
     return { provider: "replicate", modelId };
   }
 
-  throw unsupportedProviderError(modality, modelId, [
-    "openai",
-    "google",
-    "fal",
-  ]);
+  throw unsupportedProviderError(modality, modelId);
 }
 
 export function languageModel(modelId: string): LanguageModel {
@@ -183,18 +170,11 @@ export function languageModel(modelId: string): LanguageModel {
       return providers.google(route.modelId);
     case "openrouter":
       return providers.openrouter(route.modelId);
+    case "workers-ai":
     case "replicate":
-      throw unsupportedProviderError("language", modelId, [
-        "openai",
-        "google",
-        "openrouter",
-      ]);
+      throw unsupportedProviderError("language", modelId);
     case "fal":
-      throw unsupportedProviderError("language", modelId, [
-        "openai",
-        "google",
-        "openrouter",
-      ]);
+      throw unsupportedProviderError("language", modelId);
   }
 }
 
@@ -202,6 +182,10 @@ export function imageModel(modelId: string): ImageModel {
   if (resolveGatewayBackend() === "vercel") return vercelGateway.image(modelId);
 
   const route = routeCloudflareModel(modelId, "image");
+  if (route.provider === "workers-ai") {
+    assertProviderEnabled(route.provider);
+    return workersAIImage(route.modelId);
+  }
   const providers = createCloudflareProviders();
   switch (route.provider) {
     case "openai":
@@ -239,13 +223,9 @@ export function videoModel(modelId: string): GatewayVideoModel {
       return route.modelId.startsWith("fal-ai/")
         ? providers.fal.video(route.modelId)
         : createCloudflareFalQueueVideoModel(route.modelId);
+    case "workers-ai":
     case "openai":
-      throw unsupportedProviderError("video", modelId, [
-        "google",
-        "openrouter",
-        "replicate",
-        "fal",
-      ]);
+      throw unsupportedProviderError("video", modelId);
   }
 }
 
@@ -596,13 +576,10 @@ export function speechModel(modelId: string): SpeechModel {
       return providers.google.speech(route.modelId);
     case "fal":
       return providers.fal.speech(route.modelId);
+    case "workers-ai":
     case "openrouter":
     case "replicate":
-      throw unsupportedProviderError("speech", modelId, [
-        "openai",
-        "google",
-        "fal",
-      ]);
+      throw unsupportedProviderError("speech", modelId);
   }
 }
 
@@ -622,13 +599,10 @@ export function transcriptionModel(modelId: string): TranscriptionModel {
       return withCloudflareFalTranscriptionDefaults(
         providers.fal.transcription(route.modelId.replace(/^fal-ai\//, ""))
       );
+    case "workers-ai":
     case "openrouter":
     case "replicate":
-      throw unsupportedProviderError("transcription", modelId, [
-        "openai",
-        "google",
-        "fal",
-      ]);
+      throw unsupportedProviderError("transcription", modelId);
   }
 }
 
@@ -703,26 +677,17 @@ function assertProviderSupports(
   modality: GatewayModality,
   originalModelId: string
 ): void {
-  const supported: Record<GatewayModality, CloudflareProvider[]> = {
-    language: ["openai", "google", "openrouter"],
-    image: ["openai", "google", "openrouter", "replicate", "fal"],
-    video: ["google", "openrouter", "replicate", "fal"],
-    speech: ["openai", "google", "fal"],
-    transcription: ["openai", "google", "fal"],
-  };
-  if (!supported[modality].includes(provider)) {
-    throw unsupportedProviderError(
-      modality,
-      originalModelId,
-      supported[modality]
-    );
-  }
+  const supported = providersFor(modality === "language" ? "text" : modality);
+  if (!supported.includes(provider))
+    throw unsupportedProviderError(modality, originalModelId, supported);
 }
 
 function unsupportedProviderError(
   modality: GatewayModality,
   modelId: string,
-  supportedProviders: CloudflareProvider[]
+  supportedProviders: CloudflareProvider[] = providersFor(
+    modality === "language" ? "text" : modality
+  )
 ): Error {
   const prefixes = supportedProviders
     .map((provider) => `${provider}/`)

@@ -1,6 +1,6 @@
 ---
 date_created: 2026-08-30
-date_updated: 2026-08-30
+date_updated: 2026-09-06
 summary: Verified Cloudflare BYOK account state, provider tests, costs, limitations, and maintenance notes for the ai-cli fork.
 related:
   - CLAUDE.md
@@ -17,7 +17,11 @@ This repository is a GitHub fork of `vercel-labs/ai-cli` at `patricksrail/ai-cli
 
 The CLI was tested as a built command-line application, not only through unit tests. Live acceptance commands explicitly unset all known provider credential environment variables and supplied only Cloudflare account/gateway authentication.
 
-The installed local command is `/Users/patricksrail/.local/bin/ai`, linked through Bun to this checkout's `packages/ai-cli/dist/index.js`. A final no-override smoke test left `AI_CLI_GATEWAY`, `CLOUDFLARE_AI_GATEWAY_ID`, all model overrides and all provider keys unset; `ai text` selected `openrouter/google/gemini-2.5-flash-lite` and returned exactly `DEFAULT_OK`.
+The installed local command is `/Users/patricksrail/.local/bin/ai`, linked to `scripts/mac-ai.mjs`, which loads only Cloudflare auth defaults from the canonical local file and runs this checkout's `packages/ai-cli/dist/index.js`. The original 2026-08-30 no-override smoke test left `AI_CLI_GATEWAY`, `CLOUDFLARE_AI_GATEWAY_ID`, all model overrides and all provider keys unset; `ai text` selected `openrouter/google/gemini-2.5-flash-lite` and returned exactly `DEFAULT_OK`.
+
+## Current model selection (2026-09-06)
+
+The default text route is now `google/gemini-3.8-flash`, even without `--free`. The stored Google key listed the model and a live request returned `GOOGLE_38_OK`. Google's pricing page lists free input/output on free-tier projects; the model catalog and successful inference do not verify current project billing. `src/fork/model-preferences.json` stores defaults, provisional best text (Gemini 3.1 Pro via OpenRouter), best video (H3 Max via Fal), best-free preferences, and cheapest text (OpenRouter Luna) and image (Fal Sana) choices. `AI_CLI_MODEL_PREFERENCES` supports a runtime JSON override. Diagnostics, provider alternatives, and selection flags are fork-owned; current upstream `bf0fd2a` has only the original generation/models command registrations.
 
 ## Cloudflare Account State
 
@@ -28,7 +32,7 @@ The installed local command is `/Users/patricksrail/.local/bin/ai`, linked throu
 - The client sends `cf-aig-authorization`; provider authorization and `x-goog-api-key` are stripped before gateway requests.
 - Credential precedence is provider key on request, then stored BYOK key, then Cloudflare Unified Billing. Because the CLI removes provider credentials and each provider has a stored `default` key, these requests use BYOK rather than Unified Billing.
 
-Do not put provider keys in the repository or CLI environment. On Patrick's Mac, source `/Users/patricksrail/Code/specialagent/.env.local` for the Cloudflare account ID and token. Prefer `CLOUDFLARE_AI_GATEWAY_TOKEN`; the existing `CLOUDFLARE_API_TOKEN` works as a fallback.
+Do not put provider keys in the repository or CLI environment. On Patrick's Mac, the installed launcher reads Cloudflare assignments from `/Users/patricksrail/Code/specialagent/.env.local` automatically, preserving explicit environment overrides. Prefer `CLOUDFLARE_AI_GATEWAY_TOKEN`; the existing `CLOUDFLARE_API_TOKEN` works as a fallback.
 
 ## Gemini and OpenRouter Clarification
 
@@ -76,8 +80,8 @@ Video-file understanding is not implemented: `ai text` accepts still-image refer
 - Fal transcription defaults `chunkLevel` to `segment`, matching the live endpoint while honoring explicit caller options.
 - Replicate asynchronous predictions poll through Cloudflare. Flux 2 numbered reference fields are rewritten to the current `input_images` array.
 - Google Veo and OpenRouter final video-content URLs are mapped back through their Cloudflare provider routes, and the Cloudflare token is removed before CDN redirects.
-- Vercel behavior remains available explicitly and model discovery still uses Vercel's public catalog.
-- Text, video, and audio defaults and full provider IDs skip public catalog discovery; short aliases and image model classification still fetch it.
+- Vercel behavior remains available explicitly. Cloudflare discovery now uses configured provider catalogs through BYOK; see `packages/ai-cli/src/fork/` and the README.
+- All Cloudflare generation defaults and full provider IDs skip catalog discovery, including image classification. Short aliases use configured provider catalogs and reject ambiguity.
 - Structured provider errors surface `detail` and validation fields, and `undici` is a direct runtime dependency for the AI SDK's safe bundled video downloader.
 
 ## Costs and Balances
@@ -102,3 +106,13 @@ git diff --check
 ```
 
 The core implementation and regression tests are `packages/ai-cli/src/lib/gateway.ts` and `packages/ai-cli/src/lib/gateway.test.ts`. `LEARNINGS.md` records researched SDK and provider edge cases.
+
+## Workers AI decision (2026-09-06)
+
+Workers AI integration is OFF by Patrick's choice after verifying the small free allowance. `src/fork/providers.ts` has `enabled: false`; discovery and CLI generation refuse that route before inference. The tested adapter stays as reference. Fal defaults and best-free text choices are unchanged. See `docs/providers.md` for the evidence and `src/fork/README.md` for all customization entrypoints.
+
+Cloudflare provides 10,000 neurons/day, equivalent to $0.11 at $0.011/1,000 neurons, not a cash credit. The one 1024×1024 Flux test used 172.8 neurons, confirmed by both dashboard and account-wide GraphQL `aiInferenceAdaptiveGroups.sum.totalNeurons`. That fits inside the free allowance; gateway cost $0.0019008 is a list-price estimate, not proof of a charge. Roughly 57 such images fit a fresh daily allowance if nothing else consumes it.
+
+The active token is now named `CLI - Wrangler, ai-cli, GitHub, Claude and Codex`. Workers AI Read (inference) and Workers AI Metadata Read (catalogs) were added without rotating the secret. `wrangler ai models` works. Patrick also authorized a $20 cap scoped only to Workers AI on gateway `ai-cli`; enabled rule `f300261b` uses a rolling 30-day window. The cap remains configured, but the CLI integration is disabled. No prepaid credits or plan changes were made.
+
+Live Workers AI evidence: gateway log `01M1W75PCJA4VQ3WE03GYF2ER1` records the successful image at 2026-09-06T20:39:50.202Z. Before disabling the route, Wrangler 4.129.0 catalog listing and installed CLI generation passed; the output was an inspected 1024×1024 JPEG. Explicit `--free` refused inference on this Paid account. The [provider guide](docs/providers.md#schnell-image-cost-comparison) compares this usage with Fal pricing.

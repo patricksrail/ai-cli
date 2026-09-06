@@ -1,3 +1,4 @@
+import { generateWithGuidance } from "../fork/alternatives.js";
 import { errorMessage } from "./errors.js";
 import {
   supportsKittyGraphics,
@@ -84,7 +85,9 @@ export async function runJobs(
     progress.start(`Generating ${noun} with ${modelId}`);
 
     try {
-      const generated = normalizeGeneratedOutput(await generate(modelId));
+      const generated = normalizeGeneratedOutput(
+        await generateWithGuidance(modelId, generate, noun, quiet)
+      );
       const elapsed = Date.now() - start;
       progress.stop(`Generated ${noun} with ${modelId}`);
 
@@ -171,7 +174,9 @@ export async function runJobs(
       multi.startLine(lineIdxs[i]);
       const genStart = Date.now();
       try {
-        const generated = normalizeGeneratedOutput(await generate(job.modelId));
+        const generated = normalizeGeneratedOutput(
+          await generateWithGuidance(job.modelId, generate, noun, quiet)
+        );
         const genElapsed = Date.now() - genStart;
         const suffix = `${i + 1}`;
         const path = await writeOutput({

@@ -1,0 +1,39 @@
+{
+  "dateUpdated": "2026-09-06",
+  "defaults": {
+    "text": "google/gemini-3.8-flash",
+    "image": "fal/fal-ai/flux/schnell",
+    "video": "replicate/prunaai/p-video",
+    "speech": "fal/fal-ai/minimax/speech-02-turbo",
+    "transcription": "fal/fal-ai/wizper"
+  },
+  "best": {
+    "text": "openrouter/google/gemini-3.1-pro-preview",
+    "video": "fal/minimax/h3-max"
+  },
+  "cheapest": {
+    "text": "openrouter/openai/gpt-5.6-luna",
+    "image": "fal/fal-ai/sana"
+  },
+  "bestFree": {
+    "text": ["google/gemini-3.8-flash", "openrouter/openrouter/free"]
+  },
+  "notes": {
+    "best": "Editorial preferences, not an objective benchmark. Gemini Pro is provisional; Patrick selected H3 Max for video.",
+    "bestFree": "Prefer direct Google 3.8 Flash when free-tier eligible; OpenRouter free router is an availability fallback, not a quality ranking.",
+    "google": "Google free-tier eligibility is model metadata. Paid projects pay standard rates; confirm the stored key's project tier in AI Studio.",
+    "cheapest": "Saved inexpensive frontier preference, not a claim of the absolute lowest catalog price. Patrick suggested GPT-5.6 Luna for text.",
+    "routing": "Gateway defaults to Cloudflare separately from these provider/model IDs. Prefer OpenRouter where practical; direct Google is the free-text exception. Fal is the usual media host; the existing Replicate video default is retained until a replacement is selected.",
+    "cheapestImage": "Sana through Fal: $0.001 per megapixel listed 2026-09-06. Supports --size 512x512 for drafts; do not assume proportional sub-megapixel discounts or a verified invoice cost. This is the selected low-cost option, not an exhaustive global minimum."
+  },
+  "sources": {
+    "googleFree": "https://ai.google.dev/gemini-api/docs/pricing",
+    "googleBilling": "https://ai.google.dev/gemini-api/docs/billing",
+    "openrouterFree": "https://openrouter.ai/docs/api/api-reference/models/list-models-filtered-by-user-provider-preferences-privacy-settings-and-guardrails",
+    "openrouterRouter": "https://openrouter.ai/openrouter/free",
+    "video": "https://fal.ai/models/minimax/h3-max/text-to-video",
+    "cheapestImage": "https://fal.ai/models/fal-ai/sana",
+    "imagePricing": "https://fal.ai/docs/documentation/model-apis/pricing",
+    "openrouterImageFree": "https://openrouter.ai/blog/tutorials/image-generation-models/"
+  }
+}

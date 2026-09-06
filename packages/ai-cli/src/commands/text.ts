@@ -5,6 +5,7 @@ import {
   type TextPart,
 } from "ai";
 
+import { addRoutingOptions } from "../fork/options.js";
 import type { Command } from "../lib/command.js";
 import { errorMessage } from "../lib/errors.js";
 import { languageModel } from "../lib/gateway.js";
@@ -55,7 +56,7 @@ export function registerTextCommand(program: Command) {
     .argument("[prompt]", "The prompt to generate text from")
     .option(
       "-m, --model <model>",
-      "Model ID (provider/model or creator/model), comma-separated for multi-model"
+      "Full route ID (openrouter/openai/gpt-5.6-luna) or native ID with --provider; comma-separated"
     )
     .option("-o, --output <path>", "Output file path or directory")
     .option("-f, --format <fmt>", "Output format: md, txt (default: md)")
@@ -75,7 +76,7 @@ export function registerTextCommand(program: Command) {
     .option("-t, --temperature <n>", "Temperature (0-2)")
     .option("-q, --quiet", "Suppress progress output")
     .option("--json", "Output metadata as JSON");
-  addTimeoutOption(command, DEFAULT_TIMEOUT_MS).action(
+  addRoutingOptions(addTimeoutOption(command, DEFAULT_TIMEOUT_MS)).action(
     async (rawPrompt: string | undefined, opts: TextOptions) => {
       const prompt = rawPrompt?.trim() || undefined;
       const stdin = await readStdin();

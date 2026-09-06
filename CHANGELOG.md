@@ -4,12 +4,29 @@
 
 ### New Features
 
+- **Central provider registry** - Routing capabilities and `ai providers --all` share provider auth, billing nuances and official sources
+- **Workers AI evaluated, left off** - Verified Flux generation and daily usage, then disabled CLI integration by request because the daily free allowance is only $0.11 in usage value. Fixed and renamed the shared CLI token; retained the authorized Workers AI-only $20 rolling-month gateway cap
+
+- **Mac launcher** - The installed local command loads Cloudflare auth defaults automatically, preserves environment overrides, and works outside the checkout without per-command setup
+
+- **Low-cost images** - `ai image --cheapest` selects Fal Sana through Cloudflare; image help advertises 512×512 drafts, and missing free-image options point to explicit paid selection
+
+- **Diagnostics and model choices** - Added `ai doctor`, `ai gateways`, `ai providers`, one editable file for defaults/best/cheapest/best-free provider routes, generation `--free`/`--best`/`--cheapest`, and actionable catalog alternatives after failures
+- **Google 3.8 Flash default** - Plain text now uses direct Google Gemini 3.8 Flash, with published free-tier eligibility labeled separately from project billing; help and generation announce model selection
+
+- **Provider-aware discovery** - `ai models` summarizes configured Cloudflare BYOK providers; live catalogs preserve full route IDs, with `--provider`, `--search`, `--limit`, `--all`, and an advertised `--free` filter for zero-priced OpenRouter text models
+- **Explicit routing flags** - Every generation command accepts `--gateway` and `--provider`; Cloudflare image generation with full IDs no longer fetches Vercel metadata, and explicit Vercel mode uses upstream defaults
+
 - **Video resolution** - `ai video --resolution <WxH>` requests an explicit output resolution such as `1920x1080` from supported video models
 - **Cloudflare AI Gateway default** - This fork routes text, image, video, speech and transcription through the authenticated `ai-cli` Cloudflare gateway by default; set `AI_CLI_GATEWAY=vercel` for upstream Vercel routing
 - **Fal media support** - Cloudflare mode supports Fal image, video, speech, and transcription models with full IDs such as `fal/fal-ai/flux/schnell`
 - **MiniMax H3 Max through Fal** - `ai video -m fal-ai/minimax/h3-max` uses Fal's official queue client through Cloudflare and selects text-to-video or image-to-video from the input
 
 ### Improvements
+
+- **Readable fork commands** - Fork output uses bold colored provider names, meaningful status colors and aligned next steps, without dot separators or capability lists in the overview. Plain pipes and NO_COLOR are supported. Provider overviews fit on one screen; `--details` exposes wrapped auth and billing notes, source links, canonical price lists and full provider catalogs. Doctor checks and model rows use separated, wrapped output; JSON remains complete
+
+- **Fork customization map** - Added `src/fork/README.md` linking model preferences, provider policy, transport hooks, local launcher and upstream merge guidance
 
 - **Cloudflare BYOK authentication** - Cloudflare mode requires an authenticated gateway and AI Gateway Run token, keeps provider keys in Cloudflare, and does not send local provider credentials
 - **Working fork defaults** - Default text, image, video, speech, and transcription models now use live-tested OpenRouter, Fal, and Replicate BYOK routes

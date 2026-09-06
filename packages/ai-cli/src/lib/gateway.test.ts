@@ -223,7 +223,7 @@ describe("routeCloudflareModel", () => {
       "Cloudflare language model"
     );
     expect(() => routeCloudflareModel("elevenlabs/voice", "speech")).toThrow(
-      "openai/, google/, fal/"
+      "google/, openai/, fal/"
     );
   });
 });

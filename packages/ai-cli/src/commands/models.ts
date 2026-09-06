@@ -1,3 +1,8 @@
+import {
+  showCloudflareModels,
+  type CatalogOptions,
+} from "../fork/models-command.js";
+import { withGateway } from "../fork/options.js";
 import type { Command } from "../lib/command.js";
 import {
   formatLatency,
@@ -9,6 +14,7 @@ import {
   formatUptime,
   formatWebSearchPrice,
 } from "../lib/format.js";
+import { resolveGatewayBackend } from "../lib/gateway.js";
 import {
   expandModelId,
   fetchGatewayModels,
@@ -153,22 +159,58 @@ async function showModelInfo(input: string, json: boolean): Promise<void> {
 export function registerModelsCommand(program: Command) {
   program
     .command("models")
-    .description("List available models from AI Gateway")
+    .description("Browse provider models; --free checks free offers")
     .argument(
       "[model]",
-      "Show detailed info for a model (e.g. anthropic/claude-opus-4.6)"
+      "Show detailed info for a model (e.g. openrouter/google/gemini-2.5-flash-lite)"
     )
     .option(
       "--type <type>",
       "Filter by type: text, image, video, audio, speech, transcription"
     )
     .option("--creator <name>", "Filter by creator (e.g. openai, google)")
-    .option("--json", "Output as JSON (includes descriptions)")
-    .action(
-      async (
-        model: string | undefined,
-        opts: { type?: string; creator?: string; json?: boolean }
-      ) => {
+    .option(
+      "--gateway <name>",
+      "Gateway: cloudflare (default) or vercel; overrides AI_CLI_GATEWAY"
+    )
+    .option(
+      "--provider <name>",
+      "Filter provider: openrouter, google, openai, fal, replicate"
+    )
+    .option(
+      "--free",
+      "Free OpenRouter models and Google free-tier eligible models"
+    )
+    .option(
+      "--best",
+      "Show saved best choices; combine with --free for best free choices"
+    )
+    .option("--cheapest", "Show saved low-cost model choices")
+    .option("--search <text>", "Search model IDs, names, and descriptions")
+    .option(
+      "--all",
+      "Show all matching models instead of a summary or first 20"
+    )
+    .option(
+      "--limit <n>",
+      "Maximum models to display (default: 20 for filtered text output)"
+    )
+    .option("--json", "Output all matches as JSON; use --limit to truncate")
+    .action(async (model: string | undefined, opts: CatalogOptions) =>
+      withGateway(opts.gateway, async () => {
+        if (resolveGatewayBackend() === "cloudflare")
+          return showCloudflareModels(model, opts);
+        if (
+          opts.provider ||
+          opts.free ||
+          opts.search ||
+          opts.limit ||
+          opts.best ||
+          opts.cheapest
+        )
+          throw new Error(
+            "--provider, --free, --best, --cheapest, --search, and --limit require --gateway cloudflare"
+          );
         if (model) {
           if (opts.type || opts.creator) {
             process.stderr.write(
@@ -270,6 +312,6 @@ export function registerModelsCommand(program: Command) {
         } else {
           process.stdout.write("\n");
         }
-      }
+      })
     );
 }

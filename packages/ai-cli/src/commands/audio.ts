@@ -5,6 +5,7 @@ import { fileURLToPath } from "url";
 
 import { generateSpeech, transcribe } from "ai";
 
+import { addRoutingOptions } from "../fork/options.js";
 import { previewAudioOutputs } from "../lib/audio-preview.js";
 import type { Command } from "../lib/command.js";
 import { errorMessage } from "../lib/errors.js";
@@ -68,7 +69,7 @@ export function registerAudioCommand(program: Command) {
     .argument("[text]", "Text to convert to speech")
     .option(
       "-m, --model <model>",
-      "Speech model ID (provider/model or creator/model), comma-separated for multi-model"
+      "Full speech route ID, or native ID with --provider; comma-separated"
     )
     .option("-o, --output <path>", "Output file path or directory")
     .option("-f, --format <fmt>", "Audio output format (default: mp3)")
@@ -85,7 +86,11 @@ export function registerAudioCommand(program: Command) {
     .option("--json", "Output metadata as JSON")
     .option("--no-play", "Disable audio playback after generation")
     .option("--no-waveform", "Disable accurate terminal waveform preview");
-  addTimeoutOption(speak, DEFAULT_TIMEOUT_MS).action(
+  const speechAction = addRoutingOptions(
+    addTimeoutOption(speak, DEFAULT_TIMEOUT_MS),
+    "speech"
+  );
+  speechAction.action(
     async (rawText: string | undefined, opts: SpeakOptions) => {
       const text = rawText?.trim() || undefined;
       const stdin = await readStdin();
@@ -161,7 +166,7 @@ export function registerAudioCommand(program: Command) {
     .argument("[audio]", "Audio file path or URL")
     .option(
       "-m, --model <model>",
-      "Transcription model ID (provider/model or creator/model), comma-separated for multi-model"
+      "Full transcription route ID, or native ID with --provider; comma-separated"
     )
     .option("-o, --output <path>", "Output file path or directory")
     .option("-f, --format <fmt>", "Output format: md, txt (default: txt)")
@@ -175,7 +180,11 @@ export function registerAudioCommand(program: Command) {
     )
     .option("-q, --quiet", "Suppress progress output")
     .option("--json", "Output metadata as JSON");
-  addTimeoutOption(transcribeCommand, DEFAULT_TIMEOUT_MS).action(
+  const transcribeAction = addRoutingOptions(
+    addTimeoutOption(transcribeCommand, DEFAULT_TIMEOUT_MS),
+    "transcription"
+  );
+  transcribeAction.action(
     async (rawAudio: string | undefined, opts: TranscribeOptions) => {
       const stdin = await readStdin();
       if (!rawAudio && !stdin) {

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
 import {
   resolveModels,
@@ -10,13 +10,17 @@ import {
 } from "./models.js";
 
 const originalFetch = globalThis.fetch;
+const originalGateway = process.env.AI_CLI_GATEWAY;
 
 afterEach(() => {
+  if (originalGateway === undefined) delete process.env.AI_CLI_GATEWAY;
+  else process.env.AI_CLI_GATEWAY = originalGateway;
   globalThis.fetch = originalFetch;
   resetGatewayCache();
 });
 
 function mockGateway(models: Record<string, unknown>[]) {
+  process.env.AI_CLI_GATEWAY = "vercel";
   globalThis.fetch = mock(() =>
     Promise.resolve(
       new Response(JSON.stringify({ data: models }), { status: 200 })
@@ -32,9 +36,7 @@ function mockGatewayError() {
 
 describe("resolveModels", () => {
   test("returns default when no user model", () => {
-    expect(resolveModels("text")).toEqual([
-      "openrouter/google/gemini-2.5-flash-lite",
-    ]);
+    expect(resolveModels("text")).toEqual(["google/gemini-3.8-flash"]);
     expect(resolveModels("image")).toEqual(["fal/fal-ai/flux/schnell"]);
     expect(resolveModels("video")).toEqual(["replicate/prunaai/p-video"]);
     expect(resolveModels("speech")).toEqual([
@@ -157,6 +159,9 @@ describe("resolveCommandModels", () => {
 });
 
 describe("fetchGatewayModels", () => {
+  beforeEach(() => {
+    process.env.AI_CLI_GATEWAY = "vercel";
+  });
   test("partitions models by type with enriched fields", async () => {
     mockGateway([
       {
@@ -441,6 +446,9 @@ describe("fetchGatewayModels", () => {
 });
 
 describe("fetchModelEndpoints", () => {
+  beforeEach(() => {
+    process.env.AI_CLI_GATEWAY = "vercel";
+  });
   test("returns endpoint data for a model", async () => {
     const data = {
       id: "anthropic/claude-opus-4.6",

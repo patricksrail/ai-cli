@@ -1,6 +1,6 @@
 ---
 date_created: 2026-08-29
-date_updated: 2026-08-30
+date_updated: 2026-09-06
 summary: Verified authenticated Cloudflare BYOK routing and provider-native media behavior for ai-cli.
 related:
   - https://developers.cloudflare.com/ai-gateway/usage/rest-api/
@@ -53,3 +53,39 @@ ImageMagick was absent from Patrick's macOS test environment on 2026-08-29. `ffm
 ## Local Bun link on Patrick's Mac
 
 On 2026-08-30, `bun link --cwd packages/ai-cli` correctly registered the package and created `$HOME/.bun/bin/ai`, but that directory was not on Patrick's PATH. The verified local entrypoint is `$HOME/.local/bin/ai`, symlinked to the Bun-generated executable. Rebuild `packages/ai-cli/dist` after source changes; the linked command then follows this checkout without reinstalling.
+
+## Provider catalog discovery and free pricing
+
+On 2026-09-06, macOS with Bun 1.3.5, all five stored providers exposed discovery through Cloudflare BYOK without local provider keys. Cloudflare `provider_configs` uses `provider_slug` and `alias`, and contains secret-preview fields; project only the provider inventory, never print the full management response. Discovery needs AI Gateway Read for this inventory, while an explicit provider can use a Run-only token.
+
+OpenRouter's authenticated `/models/user?output_modalities=all` includes account preferences and non-text models. Some media entries have zero prompt/completion prices without establishing zero media cost. Only classify text-output entries with explicit zero prices as free; reject unknown, negative/dynamic, nonzero ancillary, and paid override prices. OpenRouter's native `openrouter/free` requires the CLI route `openrouter/openrouter/free` because the first segment selects the host.
+
+Fal's model metadata works through the Cloudflare Fal route with `x-fal-target-url: https://api.fal.ai/v1/models`; follow `next_cursor`. Google uses `nextPageToken`. Replicate's public catalog is large enough that eager full scans make even a summary slow: show inventory without catalog scans, fetch a first Replicate page for browsing, and make all pages opt-in. Native `QUERY /models` search through Cloudflare was verified with `flux`. Replicate lacks a modality field; output-example extensions are only type hints. Never send a gateway token to a provider's absolute pagination URL; validate it and map its query back to Cloudflare.
+
+## Google free tier and route-specific selection
+
+Verified 2026-09-06 on macOS with Bun 1.3.5: the stored Google key lists Gemini 3.8 Flash through Cloudflare, and text generation succeeded. Google's [pricing](https://ai.google.dev/gemini-api/docs/pricing) lists its free tier, but [billing](https://ai.google.dev/gemini-api/docs/billing) makes that conditional on the key's project tier. Catalog visibility does not prove the project is unbilled. Keep dated exact Google model metadata in `src/fork/google-pricing.ts`; keep editable route preferences in `src/fork/model-preferences.json`. Never transfer Google's free eligibility to an OpenRouter route for the same model.
+
+A 64-token Gemini probe returned no text because the output budget can be consumed by reasoning. The diagnostic probe uses 2048 output tokens and checks for nonempty text. Cloudflare-to-OpenRouter image generation also succeeded live; `src/fork/image-routing.test.ts` exercises the real SDK, gateway URL, stripped local authorization, native model ID, and decoded image with a mocked HTTP response.
+
+## Low-cost image choices
+
+Verified 2026-09-06 on Patrick's Mac: `ai image --provider fal -m fal-ai/sana --size 512x512` generated successfully through existing Cloudflare BYOK, without sourcing credentials in that invocation. Fal lists Sana at $0.001 per megapixel (https://fal.ai/models/fal-ai/sana). Do not promise proportional size discounts: Fal explicitly rounds Flux Schnell to whole megapixels (https://fal.ai/docs/model-api-reference/image-generation-api/flux-schnell), and Sana's short pricing statement does not establish its sub-megapixel minimum. OpenRouter documents no free image-generation models (https://openrouter.ai/blog/tutorials/image-generation-models/). Cloudflare Workers AI's daily allocation is separate from BYOK gateway routing; it does not make Fal or OpenRouter images free.
+
+## Fresh-shell authentication differs from inherited environment
+
+On 2026-09-06, an installed CLI check passed in the agent shell but failed in a fresh login shell started with only normal user/PATH variables: the Bun symlink did not load Cloudflare auth. The local `scripts/mac-ai.mjs` launcher fixes this by selecting only Cloudflare assignments from the canonical file with Node's environment parser, without evaluating shell code or loading local provider credentials. Existing environment values win. Test out-of-box behavior from `/tmp` with a sanitized environment; success in the agent's inherited environment is insufficient evidence. The `~/.local/bin/ai` link now points to this launcher; Bun's separate `~/.bun/bin/ai` link remains available.
+
+## Workers AI authentication and gateway routing
+
+Verified 2026-09-06 on macOS with Wrangler 4.129.0: Workers AI inference and catalog discovery use distinct token scopes. Workers AI Read enabled inference, but listing still failed with 403/code 10000 until Workers AI Metadata Read (`workers_ai_metadata_read`) was added. The live `/user/tokens/permission_groups` descriptions distinguished these scopes while the [model-list reference](https://developers.cloudflare.com/api/resources/ai/subresources/models/methods/list/) still named Read/Write. Check the live scope descriptions when the documented permission does not fix catalog authentication. A working gateway management token does not establish inference access; `default_usage_model=standard` does not establish a free account.
+
+The [unified REST API](https://developers.cloudflare.com/ai-gateway/usage/rest-api/) accepts native Workers AI requests at `/accounts/{account}/ai/run/{model}` with Cloudflare bearer authentication. Adding `cf-aig-gateway-id` attaches AI Gateway logging and controls. Workers AI runs the model; AI Gateway remains the control layer. No deployed Worker or prepaid credits are required. The [unification announcement](https://blog.cloudflare.com/workers-ai-gateway-unification/) does not extend Workers AI's free allocation to external BYOK providers.
+
+## Workers AI usage and spending controls
+
+Under [standard pricing](https://developers.cloudflare.com/workers-ai/platform/pricing/), both Free and Paid plans receive 10,000 neurons daily; Free stops at quota, while Paid can incur overage. At $0.011 per 1,000 neurons, the allowance represents $0.11 of usage per day, not cash credit. A small allowance value does not imply expensive individual images. See the [Schnell comparison](docs/providers.md#schnell-image-cost-comparison) for measured usage, pricing calculations, rounding and source links.
+
+[Gateway spend limits](https://developers.cloudflare.com/ai-gateway/features/spend-limits/) cover requests through that gateway and matching filters, not the whole account. The dashboard's sliding “1 month” is 2,592,000 seconds (30 days), not a calendar month. Costs are estimates and concurrent requests may overshoot an eventually consistent limit. A cap therefore does not prove zero overage. [Unified Billing](https://developers.cloudflare.com/ai-gateway/features/unified-billing/) is a separate prepaid option.
+
+Account-wide daily neurons can be read from the public GraphQL endpoint `https://api.cloudflare.com/client/v4/graphql` using Cloudflare bearer authentication. Query `viewer.accounts(filter: {accountTag: ...}).aiInferenceAdaptiveGroups(limit: 1, filter: {datetime_geq: UTC-day-start, datetime_lt: now}) { sum { totalNeurons } }` without grouping dimensions. Verified against the dashboard on 2026-09-06: both reported 172.8 neurons for a 1024×1024 four-step Schnell image. Analytics may lag; gateway list-price cost is not an invoice or proof of a charge after allowances. Current account settings and operational test references belong in [HANDOFF.md](HANDOFF.md).

@@ -1,5 +1,6 @@
 import { experimental_generateVideo as generateVideo } from "ai";
 
+import { addRoutingOptions } from "../fork/options.js";
 import type { Command } from "../lib/command.js";
 import { errorMessage } from "../lib/errors.js";
 import { videoDownload, videoModel } from "../lib/gateway.js";
@@ -45,7 +46,7 @@ export function registerVideoCommand(program: Command) {
     .argument("[prompt]", "The prompt to generate a video from")
     .option(
       "-m, --model <model>",
-      "Model ID (provider/model or creator/model), comma-separated for multi-model"
+      "Full route ID (fal/minimax/h3-max/text-to-video) or native ID with --provider; comma-separated"
     )
     .option("-o, --output <path>", "Output file path or directory")
     .option(
@@ -68,7 +69,11 @@ export function registerVideoCommand(program: Command) {
       "-p, --concurrency <n>",
       `Max parallel generations (default: ${DEFAULT_CONCURRENCY})`
     );
-  addTimeoutOption(command, DEFAULT_TIMEOUT_MS).action(
+  const generation = addRoutingOptions(
+    addTimeoutOption(command, DEFAULT_TIMEOUT_MS),
+    "video"
+  );
+  generation.action(
     async (rawPrompt: string | undefined, opts: VideoOptions) => {
       const prompt = rawPrompt?.trim() || undefined;
       const stdin = await readStdin();

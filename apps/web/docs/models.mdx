@@ -10,7 +10,7 @@ Each command type has a default model used when `-m` is not specified:
 
 | Type          | Default                                   | Env override                 |
 | ------------- | ----------------------------------------- | ---------------------------- |
-| text          | `openrouter/google/gemini-2.5-flash-lite` | `AI_CLI_TEXT_MODEL`          |
+| text          | `google/gemini-3.8-flash` | `AI_CLI_TEXT_MODEL`          |
 | image         | `fal/fal-ai/flux/schnell`                 | `AI_CLI_IMAGE_MODEL`         |
 | video         | `replicate/prunaai/p-video`               | `AI_CLI_VIDEO_MODEL`         |
 | speech        | `fal/fal-ai/minimax/speech-02-turbo`      | `AI_CLI_SPEECH_MODEL`        |
@@ -71,7 +71,7 @@ The first two commands select the same underlying Gemini model through different
 
 Other creator IDs route through OpenRouter for text and Replicate for image/video while preserving the complete ID. Speech and transcription require an explicit `openai/`, `google/`, or `fal/` prefix.
 
-The `models` command and short-name expansion use Vercel's public model catalog for discovery. Text, video, and audio defaults and full provider IDs skip that lookup and route directly; image generation retains catalog metadata to distinguish language-image models. Use a full provider-prefixed ID when Cloudflare or a provider account exposes a different set of models.
+Discovery follows the selected gateway. Cloudflare mode reads configured BYOK providers and their catalogs without contacting Vercel. Defaults and full IDs skip discovery for all generation commands, including images. Ambiguous short names require a full provider-prefixed ID.
 
 ## Multi-model comparison
 
@@ -91,62 +91,99 @@ This produces 4 images total (2 per model), saved with generated filename stems 
 
 ## Listing models
 
-```bash
-ai models                          # all models
-ai models --type image             # image models only
-ai models --type audio             # speech and transcription models
-ai models --creator google         # Google models only
-ai models --json                   # JSON with descriptions
-```
-
-In human mode, models are grouped by creator and display short names. Use `--json` for machine-readable output with full IDs and descriptions.
-
-## Model info
-
-Pass a model ID (or short name) to `ai models` to see its details — context window, max output tokens, pricing (input, output, cache read/write, web search), release date and per-provider latency, throughput and uptime:
+`ai models` shows your configured Cloudflare providers and command defaults. Filtered lists show 20 matches by default, with full IDs ready to copy into `-m`.
 
 ```bash
-ai models claude-opus-4.6                    # detail card
-ai models anthropic/claude-opus-4.6 --json   # machine-readable, includes raw pricing and endpoints
+ai models
+ai models --free
+ai models --provider openrouter --search gemini
+ai models --provider openrouter --creator openai
+ai models --type image --limit 50
+ai models --provider openrouter --all
+ai models --free --json
+ai models --provider replicate --search flux
+ai models openrouter/google/gemini-2.5-flash-lite
 ```
 
+`--provider` selects the host; `--creator` selects the author. `openrouter/openai/gpt-5` means OpenRouter hosting an OpenAI model, while `openai/gpt-5` selects the direct OpenAI key. `--search` matches IDs, names, and descriptions. `--all` displays every match; `--json` returns an array without display truncation unless `--limit` is supplied. Details include provider, creator, capabilities, source, and available pricing/context metadata.
+
+`--free` selects OpenRouter text models with explicit zero listed prices and exact Google models with a published free tier. Google pricing depends on the stored key's project tier: free-tier eligible does not mean free on a paid project. Both have quotas/rate limits. Source comments and the reviewed Google IDs live in `src/fork/google-pricing.ts`; OpenRouter eligibility comes from its authenticated live catalog. See [Google pricing](https://ai.google.dev/gemini-api/docs/pricing) and [Google billing](https://ai.google.dev/gemini-api/docs/billing).
+
+Fal and Replicate endpoints may need model-specific inputs beyond the CLI's options. Unknown types stay `unclassified`; Replicate types are inferred from example output. Replicate starts with its first catalog page unless `--all` is supplied, with partial coverage reported on stderr even for JSON. Prefer `--provider replicate --search <text>` to search the public catalog without crawling every page.
+
+Provider detection reads Cloudflare Provider Keys with the `default` alias and needs a token with AI Gateway Read permission. For Run-only tokens, use an explicit `--provider` or set `AI_CLI_PROVIDERS` to your comma-separated stored providers. Catalog requests use only Cloudflare authentication; local provider keys are never read or forwarded. Partial provider failures appear on stderr; total failure exits nonzero.
+
+## Gateway and provider flags
+
+All generation commands accept `--gateway cloudflare|vercel` and `--provider openrouter|google|openai|fal|replicate`. Flags go after the command, and `--gateway` overrides `AI_CLI_GATEWAY`.
+
+```bash
+ai text --provider openrouter -m google/gemini-2.5-flash-lite "hello"
+ai text --provider google -m gemini-2.5-flash-lite "hello"
+ai image --provider fal -m fal-ai/flux/schnell "a sunset"
+ai text --provider openrouter -m openrouter/free "hello"
 ```
-Claude Opus 4.6  anthropic/claude-opus-4.6
-Released 2026-02-05 · tool-use · reasoning · vision · web-search
 
-  Context      1M
-  Max output   128K
-  Input        $5/M
-  Output       $25/M
-  Cache read   $0.5/M
-  Cache write  $6.25/M
-  Web search   $10/K + input costs
+With `--provider`, supply a native provider ID with `-m`; without it, use the full CLI ID. The last example is equivalent to `ai text -m openrouter/openrouter/free "hello"`: the outer prefix chooses the host, and `openrouter/free` is the native router ID. Provider selection requires `-m` or a selection flag and applies to Cloudflare mode.
 
-Providers
-  provider   context  latency  throughput  uptime
-  anthropic  1M       1.4s     49tps       99.9%
-  bedrock    1M       1.4s     56tps       99.9%
+Vercel discovery and its original detail cards remain available explicitly with `ai models --gateway vercel`. The provider, free, best, cheapest, search, and limit filters are Cloudflare-only. Explicit Vercel generation uses upstream model defaults unless overridden by `-m` or `AI_CLI_*_MODEL`.
+
+
+## Defaults, best, and cheapest
+
+Plain `ai text "hello"` defaults to direct Google Gemini 3.8 Flash even without `--free`. The selected model is announced on stderr; `--quiet` suppresses the announcement.
+
+```bash
+ai text --free "hello"
+ai text --best "review this design"
+ai text --best --free "hello"
+ai text --cheapest "hello"
+ai video --best "a boat on a lake"
+ai models --best
+ai models --best --free
+ai models --cheapest
 ```
 
-Latency (time to first token) and throughput are p50 over the last hour; uptime covers the last day.
+`src/fork/model-preferences.json` stores `defaults`, `best`, `cheapest`, and ordered `bestFree` lists. The normal and best-free text choice is Google 3.8 Flash, the provisional best text choice is Gemini 3.1 Pro through OpenRouter, and best video is H3 Max through Fal. These are preferences, not benchmark guarantees. Other quality preferences are unset. Rebuild after editing the bundled file, or set `AI_CLI_MODEL_PREFERENCES` to a JSON override file. Environment model overrides still apply to normal defaults; explicit `-m` or selection flags win. With a selection flag, `--provider` restricts the host; `--free -m <full-id>` validates a named route, while `--best` and `--cheapest` select the saved model.
 
-## Providers
+`--cheapest` uses the saved low-cost frontier preference: `openrouter/openai/gpt-5.6-luna` for text. It is an editable choice, not a claim of the lowest live catalog price. The image choice is `fal/fal-ai/sana`; other cheapest preferences are unset. Free selection never silently falls back to paid inference.
 
-Models use [Cloudflare's provider-native routes](https://developers.cloudflare.com/ai-gateway/usage/providers/) by default. Set `AI_CLI_GATEWAY=vercel` to use [Vercel AI Gateway](https://vercel.com/docs/ai-gateway) instead.
+## Diagnostics and alternatives
 
-<Cards>
-  <Card
-    title="OpenAI"
-    description="GPT-5.5, GPT-4.1, GPT Image 2, TTS, Whisper"
-  />
-  <Card title="Anthropic" description="Claude Sonnet 4" />
-  <Card title="Google" description="Gemini 2.5 Pro, Imagen 4, Veo 3" />
-  <Card title="xAI" description="Grok 3, Grok Imagine" />
-  <Card title="Meta" description="Llama 4 Maverick" />
-  <Card title="Black Forest Labs" description="FLUX 2 Pro, FLUX Kontext" />
-  <Card title="ByteDance" description="Seedance 2.0, Seedream 5.0" />
-  <Card title="Kling AI" description="Kling v3.0" />
-  <Card title="Alibaba" description="Wan v2.5, Wan v2.6" />
-  <Card title="Recraft" description="Recraft v2, v3, v4" />
-  <Card title="Prodia" description="FLUX Fast Schnell" />
-</Cards>
+```bash
+ai gateways
+ai providers
+ai doctor
+ai doctor --probe --model google/gemini-3.8-flash
+ai providers google/gemni-2.5-flash-lite
+```
+
+`doctor` checks setup and catalogs without inference; `--probe` explicitly sends one short text request, which may incur cost. Diagnostics support `--json` and exit nonzero on failed checks. Failed generation suggests matching catalog routes or spelling fixes while preserving the provider error. Suggestions are not proof of inference credit or quota; test a route with `doctor --probe`. The CLI does not automatically change hosts or resubmit media jobs.
+
+Gateway and provider are separate: the default gateway is Cloudflare; `openrouter/openai/gpt-5.6-luna` uses its stored OpenRouter key, while `openai/gpt-5.6-luna` uses its stored OpenAI key. Direct OpenRouter without Cloudflare is not currently a gateway option. Prefer OpenRouter where practical, with direct Google for free text and Fal for media choices; saved full routes keep billing hosts explicit. The existing Replicate video default remains selectable alongside Fal. For example, `ai image -m openrouter/google/gemini-3.1-flash-image-preview "a blue square"` generates through Cloudflare and OpenRouter.
+
+### Low-cost image generation
+
+```sh
+ai image --cheapest "a small sailboat"                 # Sana through Cloudflare/Fal
+ai image --cheapest --size 512x512 "a small sailboat"  # small draft
+ai models --cheapest --type image
+ai models --free --type image
+```
+
+The saved image choice is Sana through Fal, [listed at $0.001 per megapixel](https://fal.ai/models/fal-ai/sana), checked 2026-09-06. A 512×512 image was generated successfully with the installed CLI. Size support and billing units vary by model: do not assume a 512×512 image costs one quarter of a 1024×1024 image. For example, [Fal Flux Schnell rounds up to a whole megapixel](https://fal.ai/docs/model-api-reference/image-generation-api/flux-schnell). Plain `ai image` retains its Flux Schnell default; `--cheapest` chooses Sana explicitly.
+
+The existing Google/OpenRouter routes have no verified free image offer. [OpenRouter documents no free image-generation models](https://openrouter.ai/blog/tutorials/image-generation-models/), and Google's text free tier does not include its paid image models. `--free` fails without sending paid inference and suggests the saved cheapest option. Cloudflare Workers AI has a [daily free allocation](https://developers.cloudflare.com/workers-ai/platform/pricing/), and this CLI now has a guarded Workers AI FLUX.1 Schnell adapter. The adapter is currently disabled by choice because the daily allowance was not worth the integration. If enabled, it requires a verified Workers Free plan or an enabled Workers AI gateway spending cap for ordinary generation. `--free` requires the free plan; a capped paid route is not advertised as free. Cloudflare gateway routing alone does not grant this allowance to Fal or OpenRouter requests.
+
+### Workers AI and provider notes
+
+```sh
+ai providers --all                 # supported hosts, auth, nuances, sources
+ai doctor --provider workers-ai    # check access and billing protection
+ai models --provider workers-ai --free --type image
+ai image --provider workers-ai -m @cf/black-forest-labs/flux-1-schnell "a sailboat"
+```
+
+Workers AI integration is **disabled by choice**: its 10,000-neuron daily allowance is worth about $0.11 at the published rate. A tested FLUX.1 Schnell adapter is retained as reference; these generation commands refuse requests while disabled. If enabled, Workers AI runs FLUX.1 Schnell through the existing Cloudflare gateway. Ordinary generation requires a verified Workers Free plan or a provider-wide gateway cap of at most $20 over at least 30 days. Patrick's gateway has that cap for Workers AI only; concurrent requests can overshoot it. `--free` still refuses capped paid routes. No Worker deployment or prepaid credits are needed. The image adapter supports native resolution, not arbitrary `--size` or reference images. Live 1024×1024 image generation and gateway logging are verified. Existing Fal defaults stay in place.
+
+The central provider registry is `src/fork/providers.ts`; `ai providers --all` reads it. `docs/providers.md` in the source repository explains the routing design, billing safeguards, and extension checklist. Editorial model preferences remain in `src/fork/model-preferences.json`.

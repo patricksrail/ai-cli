@@ -1,15 +1,25 @@
 import { generateImage, generateText, type JSONValue } from "ai";
 
+import { cloudflareImageModels } from "../fork/catalog.js";
+import { addRoutingOptions } from "../fork/options.js";
 import type { Command } from "../lib/command.js";
 import { errorMessage } from "../lib/errors.js";
-import { imageModel, languageModel } from "../lib/gateway.js";
+import {
+  imageModel,
+  languageModel,
+  resolveGatewayBackend,
+} from "../lib/gateway.js";
 import {
   collectImageReference,
   loadImageReferences,
   type ImageReference,
 } from "../lib/image-references.js";
 import { buildJobs, runJobs } from "../lib/jobs.js";
-import { fetchGatewayModels, resolveModels } from "../lib/models.js";
+import {
+  fetchGatewayModels,
+  resolveModels,
+  needsModelDiscovery,
+} from "../lib/models.js";
 import { parsePositiveInt, parseSize, parseAspectRatio } from "../lib/parse.js";
 import { responseIdFromHeaders } from "../lib/response-id.js";
 import { readStdin } from "../lib/stdin.js";
@@ -41,7 +51,7 @@ export function registerImageCommand(program: Command) {
     .argument("[prompt]", "The prompt to generate an image from")
     .option(
       "-m, --model <model>",
-      "Model ID (provider/model or creator/model), comma-separated for multi-model"
+      "Full route ID (fal/fal-ai/flux/schnell) or native ID with --provider; comma-separated"
     )
     .option("-o, --output <path>", "Output file path or directory")
     .option(
@@ -65,7 +75,11 @@ export function registerImageCommand(program: Command) {
       "-p, --concurrency <n>",
       `Max parallel generations (default: ${DEFAULT_CONCURRENCY})`
     );
-  addTimeoutOption(command, DEFAULT_TIMEOUT_MS).action(
+  const generation = addRoutingOptions(
+    addTimeoutOption(command, DEFAULT_TIMEOUT_MS),
+    "image"
+  );
+  generation.action(
     async (rawPrompt: string | undefined, opts: ImageOptions) => {
       const prompt = rawPrompt?.trim() || undefined;
       const stdin = await readStdin();
@@ -97,7 +111,11 @@ export function registerImageCommand(program: Command) {
         imagePrompt = prompt!;
       }
 
-      const gatewayModels = await fetchGatewayModels();
+      const gatewayModels =
+        resolveGatewayBackend() === "cloudflare" &&
+        !needsModelDiscovery(opts.model)
+          ? cloudflareImageModels(resolveModels("image", opts.model))
+          : await fetchGatewayModels();
       const models = resolveModels("image", opts.model, gatewayModels.image);
       const countPerModel = opts.count
         ? parsePositiveInt(opts.count, "count")
