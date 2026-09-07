@@ -13,7 +13,7 @@ ai-cli uses environment variables and per-command flags. Model preferences can a
     Gateway backend. Defaults to `cloudflare`.
   </Property>
   <Property name="AI_CLI_MODEL_PREFERENCES" type="path">
-    Optional JSON override for defaults, best, cheapest, and bestFree model preferences. Bundled choices live in src/fork/model-preferences.json.
+    Optional JSON override for defaults, best, cheapest, and bestFree model preferences. Bundled choices come from @patricksrail/bricks/ai/preferences.json and include preferred aliases and ordered fallbacks.
   </Property>
   <Property name="AI_CLI_PROVIDERS" type="string">
     Optional comma-separated stored provider inventory for Run-only tokens. Otherwise discovery reads Cloudflare Provider Keys using a token with AI Gateway Read permission.

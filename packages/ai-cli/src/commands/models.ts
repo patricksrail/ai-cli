@@ -185,6 +185,10 @@ export function registerModelsCommand(program: Command) {
       "--best",
       "Show saved best choices; combine with --free for best free choices"
     )
+    .option(
+      "--preferred",
+      "List saved aliases and their provider routes, without fetching catalogs"
+    )
     .option("--cheapest", "Show saved low-cost model choices")
     .option("--search <text>", "Search model IDs, names, and descriptions")
     .option(
@@ -206,7 +210,8 @@ export function registerModelsCommand(program: Command) {
           opts.search ||
           opts.limit ||
           opts.best ||
-          opts.cheapest
+          opts.cheapest ||
+          opts.preferred
         )
           throw new Error(
             "--provider, --free, --best, --cheapest, --search, and --limit require --gateway cloudflare"

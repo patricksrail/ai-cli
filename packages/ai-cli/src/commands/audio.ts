@@ -120,6 +120,7 @@ export function registerAudioCommand(program: Command) {
         async (modelId) => {
           const abort = AbortSignal.timeout(timeoutMs(opts.timeout));
           const result = await generateSpeech({
+            maxRetries: 0,
             headers: gatewayHeaders(),
             model: speechModel(modelId),
             text: speechText,
@@ -214,6 +215,7 @@ export function registerAudioCommand(program: Command) {
         async (modelId) => {
           const abort = AbortSignal.timeout(timeoutMs(opts.timeout));
           const result = await transcribe({
+            maxRetries: 0,
             headers: gatewayHeaders(),
             model: transcriptionModel(modelId),
             audio: audioInput,

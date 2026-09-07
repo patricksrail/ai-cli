@@ -1,3 +1,8 @@
+import {
+  preferredModels,
+  resolveModel,
+} from "@patricksrail/bricks/ai/preferences";
+
 import { routeCloudflareModel } from "../lib/gateway.js";
 import { resolveModels, type Modality } from "../lib/models.js";
 import {
@@ -24,6 +29,7 @@ export interface CatalogOptions {
   free?: boolean;
   best?: boolean;
   cheapest?: boolean;
+  preferred?: boolean;
   all?: boolean;
   limit?: string;
   json?: boolean;
@@ -58,6 +64,40 @@ export async function showCloudflareModels(
   if (!Number.isSafeInteger(limit) || limit < 1)
     throw new Error("--limit must be a positive integer");
   let provider = opts.provider ? parseProvider(opts.provider) : undefined;
+  if (opts.preferred) {
+    if (model || opts.free || opts.best || opts.cheapest || opts.creator)
+      throw new Error(
+        "--preferred supports --type, --provider, --search, --limit, and --json"
+      );
+    let rows = preferredModels({ preferences: modelPreferences() }).filter(
+      (row) =>
+        (!type ||
+          (type === "audio"
+            ? row.modalities.some(
+                (m) => m === "speech" || m === "transcription"
+              )
+            : row.modalities.includes(type as Modality))) &&
+        (!provider || row.provider === provider) &&
+        (!opts.search ||
+          JSON.stringify(row).toLowerCase().includes(opts.search.toLowerCase()))
+    );
+    if (opts.limit) rows = rows.slice(0, limit);
+    process.stdout.write(
+      opts.json
+        ? JSON.stringify(rows, null, 2) + "\n"
+        : "\nPreferred models (saved choices; availability is not guaranteed)\n" +
+            rows
+              .map(
+                (row) =>
+                  `  ${row.alias}  [${row.modalities.join(", ")}]\n    ${row.route}\n`
+              )
+              .join("")
+    );
+    return;
+  }
+  if (model && modelPreferences().preferred.some((p) => p.alias === model))
+    model = resolveModel(model, { preferences: modelPreferences() }).route;
+
   if (opts.free) {
     if (provider && !["openrouter", "google"].includes(provider))
       throw new Error(

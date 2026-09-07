@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **Shared preferences and aliases** - Consume the pinned bricks AI library; `ai models --preferred [--json]` lists curated aliases with explicit provider routes and CK IDs; `--provider` chooses an alias’s billing host
+- **Failure recovery** - Saved or explicit `--fallbacks` recover eligible errors while preserving free/host restrictions; `--no-fallback` pins one attempt. JSON includes original request, actual route, attempts and failures. Media polling failures do not resubmit jobs
+- **Integration examples** - README links the shared curl, AI SDK and Python recipes and the project call matrix; documents private Git dependency installation
+
+
 - **Upstream 0.4.4 sync** - Includes JPEG/WebP terminal previews while preserving fork routing and response IDs; fork pushes do not publish the upstream npm package
 
 ### New Features

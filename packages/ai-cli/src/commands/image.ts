@@ -178,6 +178,7 @@ export function registerImageCommand(program: Command) {
               (m) => m.id === modelId
             )?.creator;
             const result = await generateText({
+              maxRetries: 0,
               headers: {
                 "http-referer": "https://github.com/vercel-labs/ai-cli",
                 "x-title": "ai-cli",
@@ -208,6 +209,7 @@ export function registerImageCommand(program: Command) {
           }
 
           const result = await generateImage({
+            maxRetries: 0,
             headers: {
               "http-referer": "https://github.com/vercel-labs/ai-cli",
               "x-title": "ai-cli",

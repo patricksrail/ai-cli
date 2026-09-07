@@ -377,7 +377,7 @@ ai image --timeout 600 "a detailed sprite atlas"
 
 ## Model selection and diagnostics
 
-All generation commands advertise `--best`, `--free`, and `--cheapest`. Plain text defaults to direct Google 3.8 Flash. `--best` uses saved preferences; `--best --free` selects a saved free preference that is currently listed. `--free` selects OpenRouter zero-price or Google free-tier eligible models. `--cheapest` uses the saved low-cost preference: GPT-5.6 Luna through OpenRouter for text. For images, `--cheapest` selects Sana through Fal; add `--size 512x512` for a small draft. Other unset media preferences require an explicit model or a preference edit. No paid fallback happens automatically. See [Models](/docs/models) for pricing scope and the editable preference file.
+All generation commands advertise `--best`, `--free`, and `--cheapest`. Plain text defaults to direct Google 3.8 Flash. `--best` uses saved preferences; `--best --free` selects a saved free preference that is currently listed. `--free` selects OpenRouter zero-price or Google free-tier eligible models. `--cheapest` uses the saved low-cost preference: GPT-5.6 Luna through OpenRouter for text. For images, `--cheapest` selects Sana through Fal; add `--size 512x512` for a small draft. Other unset media preferences require an explicit model or a preference edit. Normal generation can recover through the saved paid routes; `--free` restricts every recovery route and `--no-fallback` disables recovery. See [Models](/docs/models) for pricing scope and the editable preference file.
 
 ```bash
 ai text --free "hello"
@@ -391,7 +391,7 @@ ai doctor --probe --model google/gemini-3.8-flash
 ai providers google/gemni-2.5-flash-lite
 ```
 
-`gateways` shows override choices. `providers` lists configured hosts, or matching alternatives when given a full model ID; use `--type video` for media alternatives. `doctor` checks setup/catalog access, supports `--provider` and `--gateway`, and only sends inference with `--probe`. A probe may incur cost. `--model` requires `--probe`; failed checks produce a nonzero exit code. Each diagnostic command supports `--json`. Failed generation suggests catalog alternatives rather than automatically retrying another host.
+`gateways` shows override choices. `providers` lists configured hosts, or matching alternatives when given a full model ID; use `--type video` for media alternatives. `doctor` checks setup/catalog access, supports `--provider` and `--gateway`, and only sends inference with `--probe`. A probe may incur cost. `--model` requires `--probe`; failed checks produce a nonzero exit code. Each diagnostic command supports `--json`. Recoverable failures try the ordered saved routes once each. Use `--fallbacks <routes>` to set the order or `--no-fallback` to disable recovery. JSON records every attempt and the successful route; exhausted failures exit nonzero.
 
 `ai providers --all` shows a compact overview without requiring credentials. Add `--details` for authentication, billing notes, full provider catalogs, canonical pricing links and sources. JSON retains the complete metadata. Workers AI integration is disabled by choice. Its retained image adapter uses Cloudflare-hosted FLUX.1 Schnell through the existing gateway; ordinary generation requires a verified free plan or Workers AI spending cap; `--free` requires the free plan. Check it with `ai doctor --provider workers-ai`.
 

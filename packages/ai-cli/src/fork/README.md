@@ -1,6 +1,6 @@
 ---
 date_created: 2026-09-06
-date_updated: 2026-09-06
+date_updated: 2026-09-07
 summary: Purpose, ownership map, and upstream integration points for Patrick's ai-cli customizations.
 ---
 
@@ -39,20 +39,20 @@ The command roles follow the same separation:
 
 ## Code ownership
 
-| Change                                                                  | File                              |
-| ----------------------------------------------------------------------- | --------------------------------- |
-| Default, best, cheapest and best-free fully qualified model choices     | `model-preferences.json`          |
-| Provider capabilities, authentication, billing nuances and source links | `providers.ts`                    |
-| Preference loading and validation                                       | `preferences.ts`                  |
-| Live provider catalogs and free-model discovery                         | `catalog.ts`, `google-pricing.ts` |
-| Model selection and gateway-dependent defaults                          | `selection.ts`, `defaults.ts`     |
-| Model browsing and command routing flags                                | `models-command.ts`, `options.ts` |
-| Doctor, provider and gateway commands                                   | `diagnostics.ts`                  |
-| Shared fork-only wrapping and terminal headings                         | `output.ts`                       |
-| Suggestions after a model fails                                         | `alternatives.ts`                 |
-| Disabled Workers AI adapter and billing guard                           | `workers-ai.ts`                   |
+| Change                                                                  | File                                                                                       |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Preferred aliases, defaults and ordered fallback choices                | [shared preferences](https://github.com/patricksrail/bricks/blob/main/ai/preferences.json) |
+| Provider capabilities, authentication, billing nuances and source links | `providers.ts`                                                                             |
+| Preference loading and validation                                       | `preferences.ts`                                                                           |
+| Live provider catalogs and free-model discovery                         | `catalog.ts`, `google-pricing.ts`                                                          |
+| Model selection and gateway-dependent defaults                          | `selection.ts`, `defaults.ts`                                                              |
+| Model browsing and command routing flags                                | `models-command.ts`, `options.ts`                                                          |
+| Doctor, provider and gateway commands                                   | `diagnostics.ts`                                                                           |
+| Shared fork-only wrapping and terminal headings                         | `output.ts`                                                                                |
+| Failure recovery and alternatives                                       | `alternatives.ts`                                                                          |
+| Disabled Workers AI adapter and billing guard                           | `workers-ai.ts`                                                                            |
 
-`providers.ts` is the executable source for provider names, catalog URLs, pricing URLs, authentication requirements, and short caveats. Save canonical provider URLs there when research finds them. `model-preferences.json` is the only place to edit the curated route choices. Do not copy either data set into command implementations.
+`providers.ts` is the executable source for provider names, catalog URLs, pricing URLs, authentication requirements, and short caveats. Save canonical provider URLs there when research finds them. [shared preferences](https://github.com/patricksrail/bricks/blob/main/ai/preferences.json) is the only place to edit the curated route choices. Do not copy either data set into command implementations.
 
 ## Integration outside this folder
 
@@ -67,16 +67,16 @@ Keep these integration points when merging upstream. Moving existing transport f
 
 Each durable fact has one home:
 
-| Information                                                                                         | Canonical home                                     |
-| --------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| Installation, commands, examples, and the shortest path for a user                                  | [Package README](../../README.md)                  |
-| Stable routing, authentication, billing behavior, source links, and provider extension checklist    | [Provider guide](../../../../docs/providers.md)    |
-| Provider and pricing catalog URLs consumed by the CLI                                               | [`providers.ts`](providers.ts)                     |
-| Curated default, best, cheapest, and best-free routes                                               | [`model-preferences.json`](model-preferences.json) |
-| Reusable verified behavior and implementation gotchas that required research                        | [Learnings](../../../../LEARNINGS.md)              |
-| Current account configuration, authorized caps, live test results, and unresolved operational state | [Handoff](../../../../HANDOFF.md)                  |
-| Merge procedure and invariants to recheck                                                           | [Upstream sync](../../../../docs/upstream-sync.md) |
-| User-visible history                                                                                | [Changelog](../../../../CHANGELOG.md)              |
+| Information                                                                                         | Canonical home                                                                             |
+| --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Installation, commands, examples, and the shortest path for a user                                  | [Package README](../../README.md)                                                          |
+| Stable routing, authentication, billing behavior, source links, and provider extension checklist    | [Provider guide](../../../../docs/providers.md)                                            |
+| Provider and pricing catalog URLs consumed by the CLI                                               | [`providers.ts`](providers.ts)                                                             |
+| Curated default, best, cheapest, and best-free routes                                               | [shared preferences](https://github.com/patricksrail/bricks/blob/main/ai/preferences.json) |
+| Reusable verified behavior and implementation gotchas that required research                        | [Learnings](../../../../LEARNINGS.md)                                                      |
+| Current account configuration, authorized caps, live test results, and unresolved operational state | [Handoff](../../../../HANDOFF.md)                                                          |
+| Merge procedure and invariants to recheck                                                           | [Upstream sync](../../../../docs/upstream-sync.md)                                         |
+| User-visible history                                                                                | [Changelog](../../../../CHANGELOG.md)                                                      |
 
 `.scratchpad/` contains disposable captures, generated samples, and test logs. Deleting it must not remove a fact, source URL, decision, or reproduction step needed by the next session.
 
@@ -84,7 +84,7 @@ Each durable fact has one home:
 
 1. Update `providers.ts` with its canonical catalog, pricing, and API documentation URLs.
 2. Implement catalog or transport behavior in the appropriate adapter without changing model preferences implicitly.
-3. Update `model-preferences.json` only when the intended curated choice changed.
+3. Update [shared preferences](https://github.com/patricksrail/bricks/blob/main/ai/preferences.json) only when the intended curated choice changed.
 4. Add a stable behavioral test. Keep paid live probes explicit and record reusable results in the provider guide or Learnings.
 5. Update the package README, website docs, and changelog for user-visible behavior.
 

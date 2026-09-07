@@ -125,6 +125,7 @@ export function registerVideoCommand(program: Command) {
         async (modelId) => {
           const abort = AbortSignal.timeout(timeoutMs(opts.timeout));
           const result = await generateVideo({
+            maxRetries: 0,
             headers: {
               "http-referer": "https://github.com/vercel-labs/ai-cli",
               "x-title": "ai-cli",

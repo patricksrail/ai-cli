@@ -12,6 +12,7 @@ import {
 import { createReplicate } from "@ai-sdk/replicate";
 import { createFalClient } from "@fal-ai/client";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import { gatewayConfig, byokFetch } from "@patricksrail/bricks/ai/gateway";
 import {
   gateway as vercelGateway,
   type ImageModel,
@@ -74,28 +75,7 @@ export function resolveGatewayBackend(
 export function resolveCloudflareGatewayConfig(
   env: Environment = process.env
 ): CloudflareGatewayConfig {
-  const accountId = nonEmpty(env.CLOUDFLARE_ACCOUNT_ID);
-  if (!accountId) {
-    throw new Error(
-      "CLOUDFLARE_ACCOUNT_ID is required when using the Cloudflare gateway"
-    );
-  }
-
-  const gatewayId = nonEmpty(env.CLOUDFLARE_AI_GATEWAY_ID) ?? "ai-cli";
-  const token =
-    nonEmpty(env.CLOUDFLARE_AI_GATEWAY_TOKEN) ??
-    nonEmpty(env.CLOUDFLARE_API_TOKEN);
-  if (!token) {
-    throw new Error(
-      "CLOUDFLARE_AI_GATEWAY_TOKEN or CLOUDFLARE_API_TOKEN is required when using the Cloudflare gateway"
-    );
-  }
-
-  return {
-    accountId,
-    gatewayId,
-    headers: { "cf-aig-authorization": `Bearer ${token}` },
-  };
+  return gatewayConfig(env);
 }
 
 export function cloudflareProviderBaseURL(
@@ -697,11 +677,6 @@ function unsupportedProviderError(
   );
 }
 
-function nonEmpty(value: string | undefined): string | undefined {
-  const trimmed = value?.trim();
-  return trimmed || undefined;
-}
-
 type ProviderFetch = FetchFunction;
 
 /**
@@ -711,22 +686,7 @@ type ProviderFetch = FetchFunction;
 export function createCloudflareByokFetch(
   fetchFunction: ProviderFetch = globalThis.fetch
 ): ProviderFetch {
-  const cloudflareFetch = async (
-    input: Parameters<ProviderFetch>[0],
-    init?: Parameters<ProviderFetch>[1]
-  ): Promise<Response> => {
-    const url = requestURL(input);
-    if (!isCloudflareGatewayURL(url)) return fetchFunction(input, init);
-
-    return fetchFunction(input, {
-      ...init,
-      headers: cloudflareGatewayHeaders(requestHeaders(input, init)),
-    });
-  };
-
-  return Object.assign(cloudflareFetch, {
-    preconnect: fetchFunction.preconnect,
-  });
+  return byokFetch(fetchFunction as typeof globalThis.fetch) as ProviderFetch;
 }
 
 /** Authenticate Fal's SDK proxy without presenting the Cloudflare token as a Fal key. */
@@ -769,21 +729,48 @@ export function createCloudflareFalFetch(
   ): Promise<Response> => {
     const request = normalizeRequestInput(input, init);
     const targetURL = request?.url ?? requestURL(input);
-    if (!isFalInferenceURL(targetURL)) return byokFetch(input, init);
+    if (!isFalInferenceURL(targetURL)) {
+      const response = await byokFetch(input, init);
+      if (
+        targetURL.startsWith(baseURL + "/") &&
+        (request?.method ?? init?.method ?? "GET").toUpperCase() === "POST"
+      )
+        await checkFalSubmission(response, targetURL);
+      return response;
+    }
 
     const headers = request
       ? new Headers(request.headers)
       : requestHeaders(input, init);
     headers.set("x-fal-target-url", targetURL);
-    if (request) {
-      return byokFetch(new Request(baseURL, request), { headers });
-    }
-    return byokFetch(baseURL, { ...init, headers });
+    const response = request
+      ? await byokFetch(new Request(baseURL, request), { headers })
+      : await byokFetch(baseURL, { ...init, headers });
+    if (
+      (request?.method ?? init?.method ?? "GET").toUpperCase() === "POST" &&
+      !new URL(targetURL).pathname.includes("/requests/")
+    )
+      await checkFalSubmission(response, targetURL);
+    return response;
   };
 
   return Object.assign(cloudflareFetch, {
     preconnect: fetchFunction.preconnect,
   });
+}
+
+/** Only a rejected POST can attest that no media job was accepted. Polling
+ * errors and ambiguous timeouts deliberately retain the default stop policy. */
+async function checkFalSubmission(
+  response: Response,
+  url: string
+): Promise<void> {
+  if (response.status !== 402 && response.status !== 429) return;
+  const detail = await response.clone().text();
+  throw Object.assign(
+    new Error(`Fal submission rejected (HTTP ${response.status}): ${detail}`),
+    { statusCode: response.status, requestSubmitted: false, url }
+  );
 }
 
 function cloudflareGatewayHeaders(headers: HeadersInit): Headers {

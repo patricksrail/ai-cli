@@ -409,13 +409,13 @@ ai models --best --free              # available best-free preferences
 ai models --cheapest                 # saved low-cost choices
 ```
 
-Choices live in [`src/fork/model-preferences.json`](src/fork/model-preferences.json): `defaults`, `best`, `cheapest`, and ordered `bestFree` lists. The default and best-free text choice is Google 3.8 Flash; best text is provisionally Gemini 3.1 Pro through OpenRouter; best video is H3 Max through Fal. Other quality preferences are unset. These are editable preferences, not universal quality claims. Rebuild after editing the bundled file, or set `AI_CLI_MODEL_PREFERENCES=/absolute/path/models.json` to load a partial JSON override at runtime. For example: `{"best":{"text":"openrouter/openai/gpt-5.6-luna"}}`. `AI_CLI_*_MODEL` still overrides the normal default; `-m` or a selection flag takes precedence over that default. Use `--free -m <full-id>` to verify a specific route is listed as free before generating; `--best` and `--cheapest` choose their saved model instead. With a selection flag, `--provider` restricts the host instead of requiring `-m`.
+Choices live in [shared preferences](https://github.com/patricksrail/bricks/blob/main/ai/preferences.json): `defaults`, `best`, `cheapest`, and ordered `bestFree` lists. The default and best-free text choice is Google 3.8 Flash; best text is provisionally Gemini 3.1 Pro through OpenRouter; best video is H3 Max through Fal. Other quality preferences are unset. These are editable preferences, not universal quality claims. Update the pinned bricks dependency and rebuild after editing shared choices, or set `AI_CLI_MODEL_PREFERENCES=/absolute/path/models.json` to load a partial JSON override at runtime. For example: `{"best":{"text":"openrouter/openai/gpt-5.6-luna"}}`. `AI_CLI_*_MODEL` still overrides the normal default; `-m` or a selection flag takes precedence over that default. Use `--free -m <full-id>` to verify a specific route is listed as free before generating; `--best` and `--cheapest` choose their saved model instead. With a selection flag, `--provider` restricts the host instead of requiring `-m`.
 
 `--free` includes OpenRouter models with explicit zero listed prices and exact Google models with a published free tier. Google eligibility is tracked separately from verified zero billing: the model-list API cannot report the stored key's project tier. The [Google pricing table](https://ai.google.dev/gemini-api/docs/pricing) and [billing guide](https://ai.google.dev/gemini-api/docs/billing) explain this distinction. Metadata is dated and source-linked in `src/fork/google-pricing.ts`. OpenRouter prices come from its [authenticated account catalog](https://openrouter.ai/docs/api/api-reference/models/list-models-filtered-by-user-provider-preferences-privacy-settings-and-guardrails) on each lookup. No local provider key is needed.
 
 `--cheapest` uses the saved low-cost frontier preference: `openrouter/openai/gpt-5.6-luna` for text. It is an editable choice, not a claim of the lowest live catalog price. The image choice is `fal/fal-ai/sana`; other cheapest preferences are unset. Free selection never silently falls back to paid inference.
 
-Failed generation preserves the provider error and suggests exact matching routes or likely spelling corrections from configured catalogs. These are labeled as untested and may have different prices. The CLI does not automatically switch hosts or resubmit failed media jobs. `doctor --probe --model <full-id>` explicitly tests one text route; a normal doctor run checks setup/catalog access only and returns a nonzero exit code for failed checks. Both diagnostics and suggestions support JSON where advertised in help.
+Failed generation preserves the provider error and records the attempted routes. Eligible text failures try the saved fallbacks; `--fallbacks` replaces that order and `--no-fallback` pins one route. Explicit `--provider` and `--free` constrain every fallback. Media recovery requires a confirmed rejected submission; polling failures and ambiguous timeouts stop. `doctor --probe --model <full-id>` explicitly tests one text route; a normal doctor run checks setup/catalog access only and returns a nonzero exit code for failed checks. Both diagnostics and suggestions support JSON where advertised in help.
 
 Gateway and provider are separate: the default gateway is Cloudflare; `openrouter/openai/gpt-5.6-luna` uses its stored OpenRouter key, while `openai/gpt-5.6-luna` uses its stored OpenAI key. Direct OpenRouter without Cloudflare is not currently a gateway option. Prefer OpenRouter where practical, with direct Google for free text and Fal for media choices; saved full routes keep billing hosts explicit. The existing Replicate video default remains selectable alongside Fal. For example, `ai image -m openrouter/google/gemini-3.1-flash-image-preview "a blue square"` generates through Cloudflare and OpenRouter.
 
@@ -454,6 +454,36 @@ ai image --provider workers-ai -m @cf/black-forest-labs/flux-1-schnell "a sailbo
 
 Workers AI integration is **disabled by choice**: its 10,000-neuron daily allowance is worth about $0.11 at the published rate. A tested FLUX.1 Schnell adapter is retained as reference; these generation commands refuse requests while disabled. If enabled, Workers AI runs FLUX.1 Schnell through the existing Cloudflare gateway. Ordinary generation requires a verified Workers Free plan or a provider-wide gateway cap of at most $20 over at least 30 days. Patrick's gateway has that cap for Workers AI only; concurrent requests can overshoot it. `--free` still refuses capped paid routes. No Worker deployment or prepaid credits are needed. The image adapter supports native resolution, not arbitrary `--size` or reference images. Live 1024×1024 image generation and gateway logging are verified. Existing Fal defaults stay in place.
 
-The central provider registry is `src/fork/providers.ts`; `ai providers --all` reads it. `docs/providers.md` in the source repository explains the routing design, billing safeguards, and extension checklist. Editorial model preferences remain in `src/fork/model-preferences.json`.
+The central provider registry is `src/fork/providers.ts`; `ai providers --all` reads it. `docs/providers.md` in the source repository explains the routing design, billing safeguards, and extension checklist. Editorial model preferences remain in [shared preferences](https://github.com/patricksrail/bricks/blob/main/ai/preferences.json).
 
 Human output uses bold provider names, terminal colors and grouped command examples. Capability lists are under `ai providers --details`; JSON retains them. Piped output is plain text; set `NO_COLOR=1` to disable terminal styling.
+
+## Preferred aliases and failure recovery
+
+```sh
+ai models --preferred --json
+ai models --preferred --type text
+ai text -m gpt-5.6-sol "hello"                        # OpenRouter by default
+ai text --provider openai -m gpt-5.6-sol "hello"      # OpenAI account via Cloudflare
+ai text -m gemini-3.8-flash --fallbacks gpt-5.6-sol "hello"
+ai text -m gemini-3.8-flash --no-fallback "hello"
+```
+
+The shared [bricks AI library](https://github.com/patricksrail/bricks/tree/main/ai) owns the preferred list, aliases and fallback order. `gpt-5.6-sol` expands to `openrouter/openai/gpt-5.6-sol`; the explicit OpenAI override expands to `openai/gpt-5.6-sol`. Fully qualified routes still work. With `--provider`, non-alias model arguments retain the provider’s native namespace. `models --preferred` is an offline editorial list and supports type/provider/search filters; it does not claim account access or replace the full catalog. Its JSON includes `alias`, `route`, `provider`, native `modelId`, `ckId` and supported provider overrides, so CK can consume the same choices.
+
+Default text recovery tries Google Gemini 3.8 Flash, then that model on OpenRouter, then OpenRouter GPT-5.6 Luna. Other models use their own saved fallback list; an empty list means one attempt. Explicit `--fallbacks` replaces the list and duplicate routes run only once. Each attempt uses the command timeout; SDK retries are disabled. Quota/credit (402/429), availability (404/500/502/503/504), network and timeout errors can recover for text. Authentication, invalid requests and cancellation stop. Normal recovery may incur provider charges; `--free` checks every recovery candidate and excludes unverified/paid routes. `--provider` filters saved fallbacks to that host and rejects conflicting explicit fallbacks.
+
+For media, only a confirmed HTTP 402/429 submission rejection permits another model. A failed poll, ambiguous timeout or server error does not prove that the original job was rejected, so it stops. Fallback models must accept the supplied media options. `--no-fallback` disables all saved route recovery.
+
+Progress and failures go to stderr. JSON reports `requested_model`, the successful `model` (null on failure), and ordered `attempts`; failures include the provider error and exit nonzero. Every attempt retains its full provider route. `ai providers <route>` finds catalog alternatives; those are suggestions, not verified inference. See the [project call matrix](https://github.com/patricksrail/bricks/blob/main/ai/MATRIX.md) and the library’s curl, AI SDK, Python, structured-output and streaming recipes.
+
+### Installing the private shared dependency
+
+This fork pins `@patricksrail/bricks` to a Git commit. Its built JS/declarations are committed. On Patrick’s Mac, use the existing HTTPS GitHub credentials with Bun’s explicit Git path:
+
+```sh
+GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=url.https://github.com/.insteadOf GIT_CONFIG_VALUE_0=ssh://git@github.com/ bun install
+bun run --cwd packages/ai-cli build
+```
+
+Bun’s GitHub archive shorthand returned 404 for the private library. This per-command rewrite leaves global Git settings unchanged; CI needs its own read access to the private repo. The library’s README documents the same installation route.

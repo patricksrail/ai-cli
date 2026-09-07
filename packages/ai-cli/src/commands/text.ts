@@ -129,6 +129,7 @@ export function registerTextCommand(program: Command) {
               "x-title": "ai-cli",
             },
             model: languageModel(modelId),
+            maxRetries: 0, // The shared fallback policy owns retry attempts.
             prompt: textPrompt,
             system: opts.system,
             maxOutputTokens: maxTokens,

@@ -1,3 +1,5 @@
+import { FallbackError, type Attempt } from "@patricksrail/bricks/ai/fallback";
+
 import { generateWithGuidance } from "../fork/alternatives.js";
 import { errorMessage } from "./errors.js";
 import {
@@ -86,11 +88,15 @@ export async function runJobs(
     progress.start(`Generating ${noun} with ${modelId}`);
 
     try {
-      const generated = normalizeGeneratedOutput(
-        await generateWithGuidance(modelId, generate, noun, quiet)
+      const execution = await generateWithGuidance(
+        modelId,
+        generate,
+        noun,
+        quiet
       );
+      const generated = normalizeGeneratedOutput(execution.value);
       const elapsed = Date.now() - start;
-      progress.stop(`Generated ${noun} with ${modelId}`);
+      progress.stop(`Generated ${noun} with ${execution.model}`);
 
       if (json) {
         const path = await writeOutput({
@@ -110,7 +116,9 @@ export async function runJobs(
           results: [
             {
               index: 1,
-              model: modelId,
+              model: execution.model,
+              requested_model: modelId,
+              attempts: execution.attempts,
               elapsed_ms: elapsed,
               success: true,
               file: path,
@@ -132,7 +140,7 @@ export async function runJobs(
         await afterOutputs?.([
           {
             index: 0,
-            model: modelId,
+            model: execution.model,
             label: job.label,
             data: generated.data,
             file: path,
@@ -142,6 +150,28 @@ export async function runJobs(
       }
     } catch (err) {
       progress.stop();
+      if (json)
+        process.stdout.write(
+          JSON.stringify(
+            {
+              elapsed_ms: Date.now() - start,
+              count: 0,
+              results: [
+                {
+                  index: 1,
+                  requested_model: modelId,
+                  model: null,
+                  success: false,
+                  file: null,
+                  error: errorMessage(err),
+                  attempts: failureAttempts(err),
+                },
+              ],
+            },
+            null,
+            2
+          ) + "\n"
+        );
       throw err;
     }
     return { total: 1, failed: 0 };
@@ -163,6 +193,9 @@ export async function runJobs(
   const results: {
     index: number;
     model: string;
+    requested_model: string;
+    attempts: Attempt[];
+    error?: string;
     success: boolean;
     elapsed_ms: number;
     file: string | null;
@@ -177,9 +210,13 @@ export async function runJobs(
       multi.startLine(lineIdxs[i]);
       const genStart = Date.now();
       try {
-        const generated = normalizeGeneratedOutput(
-          await generateWithGuidance(job.modelId, generate, noun, quiet)
+        const execution = await generateWithGuidance(
+          job.modelId,
+          generate,
+          noun,
+          quiet
         );
+        const generated = normalizeGeneratedOutput(execution.value);
         const genElapsed = Date.now() - genStart;
         const suffix = `${i + 1}`;
         const path = await writeOutput({
@@ -206,7 +243,9 @@ export async function runJobs(
         );
         results.push({
           index: i,
-          model: job.modelId,
+          model: execution.model,
+          requested_model: job.modelId,
+          attempts: execution.attempts,
           success: true,
           elapsed_ms: genElapsed,
           file: path,
@@ -214,7 +253,7 @@ export async function runJobs(
         if (collectOutputs) {
           outputs.push({
             index: i,
-            model: job.modelId,
+            model: execution.model,
             label: job.label,
             data: generated.data,
             file: path,
@@ -231,6 +270,9 @@ export async function runJobs(
         results.push({
           index: i,
           model: job.modelId,
+          requested_model: job.modelId,
+          attempts: failureAttempts(err),
+          error: msg,
           success: false,
           elapsed_ms: genElapsed,
           file: null,
@@ -248,7 +290,10 @@ export async function runJobs(
       count: orderedResults.filter((r) => r.success).length,
       results: orderedResults.map((r) => ({
         index: r.index + 1,
-        model: r.model,
+        model: r.success ? r.model : null,
+        requested_model: r.requested_model,
+        attempts: r.attempts,
+        ...(r.error ? { error: r.error } : {}),
         elapsed_ms: r.elapsed_ms,
         success: r.success,
         file: r.file,
@@ -279,4 +324,11 @@ function normalizeGeneratedOutput(result: GenerateResult): GeneratedOutput {
   }
 
   return result;
+}
+
+function failureAttempts(error: unknown): Attempt[] {
+  if (error instanceof FallbackError) return error.attempts;
+  if (error instanceof Error && error.cause)
+    return failureAttempts(error.cause);
+  return [];
 }

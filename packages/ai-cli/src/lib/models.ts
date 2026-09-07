@@ -1,5 +1,8 @@
+import { resolveModel } from "@patricksrail/bricks/ai/preferences";
+
 import { asGatewayModels, fetchCloudflareCatalog } from "../fork/catalog.js";
 import { resolveDefaultModel } from "../fork/defaults.js";
+import { modelPreferences } from "../fork/preferences.js";
 import { resolveGatewayBackend } from "./gateway.js";
 export type Modality = "text" | "image" | "video" | "speech" | "transcription";
 
@@ -261,6 +264,18 @@ export async function resolveCommandModels(
   modality: Modality,
   userModel?: string
 ): Promise<string[]> {
+  if (resolveGatewayBackend() === "cloudflare" && userModel) {
+    const prefs = modelPreferences();
+    userModel = userModel
+      .split(",")
+      .map((id) => {
+        const value = id.trim();
+        return prefs.preferred.some((m) => m.alias === value)
+          ? resolveModel(value, { modality, preferences: prefs }).route
+          : value;
+      })
+      .join(",");
+  }
   if (!needsModelDiscovery(userModel))
     return resolveModels(modality, userModel);
   const gatewayModels = await fetchGatewayModels();

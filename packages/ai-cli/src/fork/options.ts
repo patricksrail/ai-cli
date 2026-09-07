@@ -1,7 +1,14 @@
+import {
+  resolveModel,
+  type Provider,
+} from "@patricksrail/bricks/ai/preferences";
+
 import type { Command } from "../lib/command.js";
 import { resolveGatewayBackend } from "../lib/gateway.js";
 import type { Modality } from "../lib/models.js";
 import { parseProvider } from "./catalog.js";
+import { executionPolicy } from "./execution-policy.js";
+import { modelPreferences } from "./preferences.js";
 import { PROVIDERS } from "./providers.js";
 import { selectModel } from "./selection.js";
 
@@ -13,6 +20,8 @@ export interface RoutingOptions {
   free?: boolean;
   cheapest?: boolean;
   quiet?: boolean;
+  fallback?: boolean;
+  fallbacks?: string;
 }
 
 export async function withGateway<T>(
@@ -45,7 +54,17 @@ export function qualifyProviderModels(
   // --provider openrouter -m openrouter/free keeps OpenRouter's native namespace.
   return model
     .split(",")
-    .map((id) => `${selected}/${id.trim()}`)
+    .map((id) => {
+      const alias = modelPreferences().preferred.find(
+        (m) => m.alias === id.trim()
+      );
+      return alias
+        ? resolveModel(id.trim(), {
+            provider: selected as Provider,
+            preferences: modelPreferences(),
+          }).route
+        : `${selected}/${id.trim()}`;
+    })
     .join(",");
 }
 
@@ -77,6 +96,14 @@ export function addRoutingOptions(
       modality === "image"
         ? "Use saved low-cost image model; --size 512x512 for a small draft"
         : "Use saved low-cost model; see ai models --cheapest"
+    )
+    .option(
+      "--fallbacks <models>",
+      "Ordered fallback route IDs or saved aliases, comma-separated"
+    )
+    .option(
+      "--no-fallback",
+      "Attempt only the selected model; disable saved fallback routes"
     );
   return {
     action<TArgument, TOptions>(
@@ -88,6 +115,10 @@ export function addRoutingOptions(
       return command.action(
         async (argument: TArgument, options: TOptions & RoutingOptions) => {
           await withGateway(options.gateway, async () => {
+            if (options.fallback === false && options.fallbacks)
+              throw new Error("Use --fallbacks or --no-fallback, not both");
+            if (options.fallbacks && resolveGatewayBackend() !== "cloudflare")
+              throw new Error("--fallbacks requires Cloudflare");
             if (options.best || options.free || options.cheapest) {
               if (resolveGatewayBackend() !== "cloudflare")
                 throw new Error(
@@ -105,6 +136,17 @@ export function addRoutingOptions(
                   options.provider,
                   options.model
                 );
+              if (
+                options.model &&
+                !options.provider &&
+                modelPreferences().preferred.some(
+                  (m) => m.alias === options.model
+                )
+              )
+                options.model = resolveModel(options.model, {
+                  modality,
+                  preferences: modelPreferences(),
+                }).route;
               const selected = await selectModel(modality, options);
               options.model = selected.id;
               if (!options.quiet)
@@ -125,7 +167,17 @@ export function addRoutingOptions(
             try {
               // Recheck free-only billing at inference, not just discovery.
               if (options.free) process.env.AI_CLI_FREE_ONLY = "1";
-              await handler(argument, options);
+              await executionPolicy.run(
+                {
+                  fallback: options.fallback,
+                  fallbacks: options.fallbacks?.split(",").map((m) => m.trim()),
+                  free: options.free,
+                  provider: options.provider
+                    ? parseProvider(options.provider)
+                    : undefined,
+                },
+                () => handler(argument, options)
+              );
             } finally {
               if (previousFree === undefined)
                 delete process.env.AI_CLI_FREE_ONLY;

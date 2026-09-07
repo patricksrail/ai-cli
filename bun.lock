@@ -54,6 +54,7 @@
         "@ai-sdk/replicate": "3.0.34",
         "@fal-ai/client": "1.10.1",
         "@openrouter/ai-sdk-provider": "3.0.0",
+        "@patricksrail/bricks": "git+ssh://git@github.com/patricksrail/bricks.git#d67b1999e21dc15eededb0ab71f90c5818c6ccac",
         "ai": "7.0.84",
         "sharp": "0.35.4",
         "undici": "7.29.0",
@@ -292,6 +293,8 @@
     "@oxlint/binding-win32-ia32-msvc": ["@oxlint/binding-win32-ia32-msvc@1.56.0", "", { "os": "win32", "cpu": "ia32" }, "sha512-PTRy6sIEPqy2x8PTP1baBNReN/BNEFmde0L+mYeHmjXE1Vlcc9+I5nsqENsB2yAm5wLkzPoTNCMY/7AnabT4/A=="],
 
     "@oxlint/binding-win32-x64-msvc": ["@oxlint/binding-win32-x64-msvc@1.56.0", "", { "os": "win32", "cpu": "x64" }, "sha512-ZHa0clocjLmIDr+1LwoWtxRcoYniAvERotvwKUYKhH41NVfl0Y4LNbyQkwMZzwDvKklKGvGZ5+DAG58/Ik47tQ=="],
+
+    "@patricksrail/bricks": ["@patricksrail/bricks@git+ssh://git@github.com/patricksrail/bricks.git#d67b1999e21dc15eededb0ab71f90c5818c6ccac", { "dependencies": { "@ai-sdk/google": "4.0.57", "@ai-sdk/openai": "4.0.51", "@openrouter/ai-sdk-provider": "3.0.0", "ai": "7.0.84" } }, "d67b1999e21dc15eededb0ab71f90c5818c6ccac"],
 
     "@shikijs/core": ["@shikijs/core@3.23.0", "", { "dependencies": { "@shikijs/types": "3.23.0", "@shikijs/vscode-textmate": "^10.0.2", "@types/hast": "^3.0.4", "hast-util-to-html": "^9.0.5" } }, "sha512-NSWQz0riNb67xthdm5br6lAkvpDJRTgB36fxlo37ZzM2yq0PQFFzbd8psqC2XMPgCzo1fW6cVi18+ArJ44wqgA=="],
 

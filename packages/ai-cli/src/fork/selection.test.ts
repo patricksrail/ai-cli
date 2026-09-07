@@ -126,7 +126,7 @@ test("alternatives identify exact cross-provider IDs and likely misspellings", (
   ).toHaveLength(2);
 });
 
-test("failed generation preserves error and never retries on another host", async () => {
+test("unclassified generation failures preserve guidance without retrying", async () => {
   const generate = mock(async () => {
     throw new Error("quota exceeded");
   });

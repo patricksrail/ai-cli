@@ -1,6 +1,6 @@
 ---
 date_created: 2026-08-30
-date_updated: 2026-09-06
+date_updated: 2026-09-07
 summary: Verified Cloudflare BYOK account state, provider tests, costs, limitations, and maintenance notes for the ai-cli fork.
 related:
   - CLAUDE.md
@@ -19,9 +19,17 @@ The CLI was tested as a built command-line application, not only through unit te
 
 The installed local command is `/Users/patricksrail/.local/bin/ai`, linked to `scripts/mac-ai.mjs`, which loads only Cloudflare auth defaults from the canonical local file and runs this checkout's `packages/ai-cli/dist/index.js`. The original 2026-08-30 no-override smoke test left `AI_CLI_GATEWAY`, `CLOUDFLARE_AI_GATEWAY_ID`, all model overrides and all provider keys unset; `ai text` selected `openrouter/google/gemini-2.5-flash-lite` and returned exactly `DEFAULT_OK`.
 
-## Current model selection (2026-09-06)
+## Current update (2026-09-07)
 
-The default text route is now `google/gemini-3.8-flash`, even without `--free`. The stored Google key listed the model and a live request returned `GOOGLE_38_OK`. Google's pricing page lists free input/output on free-tier projects; the model catalog and successful inference do not verify current project billing. `src/fork/model-preferences.json` stores defaults, provisional best text (Gemini 3.1 Pro via OpenRouter), best video (H3 Max via Fal), best-free preferences, and cheapest text (OpenRouter Luna) and image (Fal Sana) choices. `AI_CLI_MODEL_PREFERENCES` supports a runtime JSON override. Diagnostics, provider alternatives, and selection flags are fork-owned; current upstream `bf0fd2a` has only the original generation/models command registrations.
+Validation passed: 294 CLI tests, 20 website tests and 8 library tests; production CLI/web builds, TypeScript and formatting pass. Lint retains 25 existing warnings and no errors. The rebuilt installed CLI returned `CLI_SHARED_OK` via Google Gemini 2.5 Flash Lite; the library SDK returned `LIBRARY_SHARED_OK` through OpenRouter with gateway-only BYOK auth. Failure recovery itself was verified with deterministic subprocess HTTP fixtures, avoiding manufactured live quota failures.
+
+Shared preferences, aliases, SDK examples and failure policy are now in `patricksrail/bricks/ai`; the CLI pins that library. See README for `--preferred`, `--fallbacks`, `--no-fallback`, provider overrides and structured failure output.
+
+The gateway currently has authentication enabled and `spend_limits.enabled: false`; the prior Workers AI rule remains stored. This session changed no gateway settings. Two independent uncached Google/OpenRouter Gemini 2.5 Flash Lite probes returned HTTP 200/MISS/OK, run IDs `01M1XDCYATTFMQRJG9V5QK0NZ9` and `01M1XDCZ2G4EZKMWBVB3G6W3D8`. The historical cap-induced blockage below describes the September 6 state and is superseded by this check.
+
+## Model selection
+
+The default text route is now `google/gemini-3.8-flash`, even without `--free`. The stored Google key listed the model and a live request returned `GOOGLE_38_OK`. Google's pricing page lists free input/output on free-tier projects; the model catalog and successful inference do not verify current project billing. [shared preferences](https://github.com/patricksrail/bricks/blob/main/ai/preferences.json) stores defaults, provisional best text (Gemini 3.1 Pro via OpenRouter), best video (H3 Max via Fal), best-free preferences, and cheapest text (OpenRouter Luna) and image (Fal Sana) choices. `AI_CLI_MODEL_PREFERENCES` supports a runtime JSON override. Diagnostics, provider alternatives, and selection flags are fork-owned; current upstream `bf0fd2a` has only the original generation/models command registrations.
 
 ## Cloudflare Account State
 
@@ -123,4 +131,4 @@ Merged upstream through `bf0fd2a`, including JPEG/WebP Kitty previews; retained 
 
 The text blocker was reproduced independently of the CLI. On 2026-09-06, plain Google and OpenRouter requests failed with 403/code 2040 while the gateway had the Workers AI-only cap. A controlled temporary empty-rule configuration, with authentication preserved and 75 seconds allowed for propagation, made both requests succeed: Google run `01M1WNM33R1MTTW7WXTYGQPD26`, OpenRouter run `01M1WNM3KQ9ATN62R9NRC2QFB1`, both HTTP 200, cache MISS and `OK` with `cf-aig-skip-cache: true`. Original cap rule `f300261b` and `authentication: true` were restored and verified. Repeated requests initially appeared successful after restoration, but they were cached. The final controlled on/off/on test bypassed cache throughout; after restoring the identical rule and waiting 75 seconds, Google run `01M1WNPGJZD7CK4PP9KM1MQM5N` and OpenRouter run `01M1WNPGMZ24C6VRPAVM6ZT0E6` both returned 403/code 2040 again. The cap triggers the gateway error on these routes. Workers AI remains disabled in the CLI. See LEARNINGS.md for the reusable diagnosis and sources.
 
-During the first comparison, an incomplete PUT reset gateway authentication to false; this was corrected before the conclusive test. The final comparison preserved all writable settings. The original cap is still enabled and filtered only to Workers AI; uncached Google/OpenRouter text remains blocked until the gateway issue or cap placement is addressed.
+During the first comparison, an incomplete PUT reset gateway authentication to false; this was corrected before the conclusive test. The final comparison preserved all writable settings. At the end of that September 6 test, the original cap was enabled and uncached text was blocked. See the September 7 update above for the current disabled spend-limit state and successful uncached probes.
