@@ -1,3 +1,9 @@
+/**
+ * CLI-owned provider transport: construct models, authenticate Cloudflare BYOK,
+ * and preserve provider-specific media submission, polling and download flows.
+ * Model choices live in fork/model-preferences.json; provider paths/capabilities
+ * live in fork/providers.ts. This module does not depend on an external wrapper.
+ */
 import { createFal } from "@ai-sdk/fal";
 import { createGoogle } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
@@ -12,7 +18,6 @@ import {
 import { createReplicate } from "@ai-sdk/replicate";
 import { createFalClient } from "@fal-ai/client";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
-import { gatewayConfig, byokFetch } from "@patricksrail/bricks/ai/gateway";
 import {
   gateway as vercelGateway,
   type ImageModel,
@@ -75,7 +80,22 @@ export function resolveGatewayBackend(
 export function resolveCloudflareGatewayConfig(
   env: Environment = process.env
 ): CloudflareGatewayConfig {
-  return gatewayConfig(env);
+  const accountId = env.CLOUDFLARE_ACCOUNT_ID?.trim();
+  if (!accountId)
+    throw new Error(
+      "CLOUDFLARE_ACCOUNT_ID is required when using the Cloudflare gateway"
+    );
+  const token =
+    env.CLOUDFLARE_AI_GATEWAY_TOKEN?.trim() || env.CLOUDFLARE_API_TOKEN?.trim();
+  if (!token)
+    throw new Error(
+      "CLOUDFLARE_AI_GATEWAY_TOKEN or CLOUDFLARE_API_TOKEN is required when using the Cloudflare gateway"
+    );
+  return {
+    accountId,
+    gatewayId: env.CLOUDFLARE_AI_GATEWAY_ID?.trim() || "ai-cli",
+    headers: { "cf-aig-authorization": `Bearer ${token}` },
+  };
 }
 
 export function cloudflareProviderBaseURL(
@@ -686,7 +706,28 @@ type ProviderFetch = FetchFunction;
 export function createCloudflareByokFetch(
   fetchFunction: ProviderFetch = globalThis.fetch
 ): ProviderFetch {
-  return byokFetch(fetchFunction as typeof globalThis.fetch) as ProviderFetch;
+  const cloudflareFetch = async (
+    input: Parameters<ProviderFetch>[0],
+    init?: Parameters<ProviderFetch>[1]
+  ): Promise<Response> => {
+    const originalUrl = requestURL(input);
+    if (!isCloudflareGatewayURL(originalUrl)) return fetchFunction(input, init);
+
+    const gatewayUrl = new URL(originalUrl);
+    gatewayUrl.searchParams.delete("key");
+    const headers = cloudflareGatewayHeaders(requestHeaders(input, init));
+    const request =
+      input instanceof Request
+        ? new Request(gatewayUrl, input)
+        : gatewayUrl.toString();
+    // Provider keys belong in Cloudflare, not request headers/query strings.
+    // Refuse redirects so a gateway token cannot be forwarded to another host.
+    // Provider-owned media downloads use the dedicated safe download adapters.
+    return fetchFunction(request, { ...init, headers, redirect: "error" });
+  };
+  return Object.assign(cloudflareFetch, {
+    preconnect: fetchFunction.preconnect,
+  });
 }
 
 /** Authenticate Fal's SDK proxy without presenting the Cloudflare token as a Fal key. */
@@ -777,6 +818,7 @@ function cloudflareGatewayHeaders(headers: HeadersInit): Headers {
   const sanitized = new Headers(headers);
   sanitized.delete("authorization");
   sanitized.delete("x-goog-api-key");
+  sanitized.delete("x-api-key");
   return sanitized;
 }
 

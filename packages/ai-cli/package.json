@@ -52,8 +52,7 @@
     "@openrouter/ai-sdk-provider": "3.0.0",
     "ai": "7.0.84",
     "undici": "7.29.0",
-    "sharp": "0.35.4",
-    "@patricksrail/bricks": "git+ssh://git@github.com/patricksrail/bricks.git#d67b1999e21dc15eededb0ab71f90c5818c6ccac"
+    "sharp": "0.35.4"
   },
   "devDependencies": {
     "@types/bun": "^1.3.13",

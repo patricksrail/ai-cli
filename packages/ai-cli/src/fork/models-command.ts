@@ -1,8 +1,5 @@
-import {
-  preferredModels,
-  resolveModel,
-} from "@patricksrail/bricks/ai/preferences";
-
+/** Model browsing: preferred choices are an offline local feed; full catalog
+ * discovery remains provider-backed and does not verify inference credit. */
 import { routeCloudflareModel } from "../lib/gateway.js";
 import { resolveModels, type Modality } from "../lib/models.js";
 import {
@@ -11,12 +8,14 @@ import {
   parseProvider,
   type CatalogEntry,
 } from "./catalog.js";
-import { accent, action, heading, statusColor, wrapped } from "./output.js";
 import {
+  preferredModels,
+  resolveModel,
   MODALITIES,
   modelPreferences,
   preferenceLocation,
-} from "./preferences.js";
+} from "./model-preferences.js";
+import { accent, action, heading, statusColor, wrapped } from "./output.js";
 import { FREE_PROVIDERS } from "./providers.js";
 import { isFreeOffer, preferredFree } from "./selection.js";
 

@@ -4,11 +4,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { resolveModels } from "../lib/models.js";
-import { matchAlternatives, generateWithGuidance } from "./alternatives.js";
+import { matchAlternatives } from "./alternatives.js";
 import { normalizeOpenRouter, type CatalogEntry } from "./catalog.js";
 import { doctorChecks } from "./diagnostics.js";
+import { generateWithGuidance } from "./generation.js";
 import { googleFreeTier } from "./google-pricing.js";
-import { modelPreferences } from "./preferences.js";
+import { modelPreferences } from "./model-preferences.js";
 import { preferredFree, selectModel } from "./selection.js";
 
 const originalFetch = globalThis.fetch;
@@ -131,7 +132,10 @@ test("unclassified generation failures preserve guidance without retrying", asyn
     throw new Error("quota exceeded");
   });
   await expect(
-    generateWithGuidance("google/gemini-3.8-flash", generate, "text", true)
+    generateWithGuidance("google/gemini-3.8-flash", generate, {
+      modality: "text",
+      quiet: true,
+    })
   ).rejects.toThrow("quota exceeded");
   expect(generate).toHaveBeenCalledTimes(1);
 });

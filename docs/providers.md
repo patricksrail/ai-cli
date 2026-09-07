@@ -4,7 +4,7 @@ date_updated: 2026-09-07
 summary: Central provider architecture, billing distinctions, and extension checklist for this fork.
 related:
   - ../packages/ai-cli/src/fork/providers.ts
-  - https://github.com/patricksrail/bricks/blob/main/ai/preferences.json
+  - https://github.com/patricksrail/ai-cli/blob/main/packages/ai-cli/src/fork/model-preferences.json
   - ../LEARNINGS.md
 ---
 
@@ -12,7 +12,7 @@ related:
 
 The executable registry is [`src/fork/providers.ts`](../packages/ai-cli/src/fork/providers.ts). It owns provider IDs, supported CLI modalities, native base paths, credential type, free-discovery support, nuances, and source links. `ai providers --all` prints a compact overview without needing credentials. Add `--details` for authentication, billing notes, full catalog and pricing links and sources; `--json` retains the complete metadata. Use `ai providers` for the configured BYOK inventory and `ai doctor --provider <name>` to check access. A supported provider is not necessarily authenticated or funded.
 
-The editable model choices live separately in [shared preferences](https://github.com/patricksrail/bricks/blob/main/ai/preferences.json): defaults, best, cheapest, and ordered bestFree lists. These contain full provider routes. Adding a provider must not silently change those preferences.
+The editable model choices live separately in [CLI model preferences](https://github.com/patricksrail/ai-cli/blob/main/packages/ai-cli/src/fork/model-preferences.json): defaults, best, cheapest, and ordered bestFree lists. These contain full provider routes. Adding a provider must not silently change those preferences.
 
 ## Gateway, provider, and model
 

@@ -15,9 +15,9 @@ import {
   fetchCloudflareCatalog,
   parseProvider,
 } from "./catalog.js";
+import { modelPreferences, preferenceLocation } from "./model-preferences.js";
 import { withGateway } from "./options.js";
 import { accent, action, heading, statusColor, wrapped } from "./output.js";
-import { modelPreferences, preferenceLocation } from "./preferences.js";
 import {
   PROVIDER_REGISTRY,
   PROVIDERS,

@@ -1,6 +1,8 @@
 // Subprocess-only HTTP fixture. An unexpected request fails instead of using the network.
 import { appendFileSync } from "node:fs";
 
+let vercelAttempts = 0;
+
 globalThis.fetch = (async (input, init) => {
   const url = input instanceof Request ? input.url : String(input);
   const headers = new Headers(init?.headers);
@@ -14,6 +16,21 @@ globalThis.fetch = (async (input, init) => {
       gatewayAuth: headers.get("cf-aig-authorization"),
     }) + "\n"
   );
+  // Vercel uses the AI SDK model protocol. Fail once to prove the CLI leaves
+  // its SDK retry defaults intact; no Cloudflare route should be contacted.
+  if (url.endsWith("/language-model")) {
+    vercelAttempts++;
+    if (vercelAttempts === 1)
+      return Response.json(
+        { error: { message: "Temporarily unavailable" } },
+        { status: 503, headers: { "retry-after-ms": "1" } }
+      );
+    return Response.json({
+      content: [{ type: "text", text: "VERCEL_RETRIED" }],
+      finishReason: { unified: "stop", raw: "stop" },
+      usage: { inputTokens: { total: 1 }, outputTokens: { total: 1 } },
+    });
+  }
   if (new URL(url).pathname.endsWith("/models/user"))
     return Response.json({
       data: [

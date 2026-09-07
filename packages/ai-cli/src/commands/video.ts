@@ -1,6 +1,7 @@
 import { experimental_generateVideo as generateVideo } from "ai";
 
-import { addRoutingOptions } from "../fork/options.js";
+import { generationRetryOptions } from "../fork/generation.js";
+import { addRoutingOptions, type RoutingOptions } from "../fork/options.js";
 import type { Command } from "../lib/command.js";
 import { errorMessage } from "../lib/errors.js";
 import { videoDownload, videoModel } from "../lib/gateway.js";
@@ -24,7 +25,7 @@ import { addTimeoutOption, timeoutMs } from "../lib/timeout.js";
 const DEFAULT_CONCURRENCY = 2;
 const DEFAULT_TIMEOUT_MS = 300_000;
 
-interface VideoOptions {
+interface VideoOptions extends RoutingOptions {
   model?: string;
   output?: string;
   image?: string[];
@@ -125,7 +126,7 @@ export function registerVideoCommand(program: Command) {
         async (modelId) => {
           const abort = AbortSignal.timeout(timeoutMs(opts.timeout));
           const result = await generateVideo({
-            maxRetries: 0,
+            ...generationRetryOptions(),
             headers: {
               "http-referer": "https://github.com/vercel-labs/ai-cli",
               "x-title": "ai-cli",
@@ -143,6 +144,8 @@ export function registerVideoCommand(program: Command) {
         },
         {
           noun: "video",
+          modality: "video",
+          routing: opts,
           format: "video",
           outputPath: opts.output,
           quiet: opts.quiet,

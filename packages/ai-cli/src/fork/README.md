@@ -1,95 +1,57 @@
 ---
 date_created: 2026-09-06
 date_updated: 2026-09-07
-summary: Purpose, ownership map, and upstream integration points for Patrick's ai-cli customizations.
+summary: Where CLI behavior lives and how to follow model selection, routing and failure recovery.
 ---
 
 # Fork customizations
 
-This directory is the policy and presentation layer for Patrick's fork of `ai-cli`. Upstream owns the generation commands and Vercel behavior. The fork adds Cloudflare BYOK routing, provider discovery, model preferences, diagnostics, and the human-readable terminal output for those additions.
+Start here to understand or change Patrick's ai-cli behavior. The CLI is self-contained: its model choices, aliases, Cloudflare authentication and fallback logic live in this repository. It does not import bricks or require access to that private repository to install or build.
 
-Start here when changing Patrick's defaults or merging upstream. Most new fork behavior lives in this directory, with tests beside it. Keep upstream integration small; a separate folder makes changes easier to find but cannot prevent merge conflicts in shared entry points.
+## Where to make a change
 
-## Product model
+| Change                                                                              | Owning file                                                              |
+| ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Preferred models, aliases, defaults, best/cheapest/free choices and fallback order  | [model-preferences.json](model-preferences.json)                         |
+| Read and validate those choices; expand aliases; produce the offline preferred feed | [model-preferences.ts](model-preferences.ts)                             |
+| Provider names, paths, capabilities, billing notes and source URLs                  | [providers.ts](providers.ts)                                             |
+| Fetch catalogs and interpret Google free-tier metadata                              | [catalog.ts](catalog.ts), [google-pricing.ts](google-pricing.ts)         |
+| Select a default, best, cheapest or verified free model                             | [defaults.ts](defaults.ts), [selection.ts](selection.ts)                 |
+| Register command flags and apply the user's selection                               | [options.ts](options.ts)                                                 |
+| Choose permitted fallback routes; preserve Vercel retry behavior; explain failures  | [generation.ts](generation.ts)                                           |
+| Classify errors and attempt each permitted route once                               | [fallback.ts](fallback.ts)                                               |
+| Suggest similar models or the same model on another host, without inference         | [alternatives.ts](alternatives.ts)                                       |
+| Browse models and run setup diagnostics                                             | [models-command.ts](models-command.ts), [diagnostics.ts](diagnostics.ts) |
+| Construct SDK models; authenticate BYOK; submit/poll/download media                 | [../lib/gateway.ts](../lib/gateway.ts)                                   |
+| Run jobs, save outputs and report successful routes/attempts                        | [../lib/jobs.ts](../lib/jobs.ts)                                         |
 
-Keep these terms distinct in code, help, and documentation:
+Tests sit beside the behavior they verify. `generation.test.ts` runs the CLI against simulated HTTP responses; `fallback.test.ts` tests recovery safety; `model-preferences.test.ts` tests the editable preference contract. Gateway/media tests remain beside `lib/gateway.ts`.
 
-- **Gateway** is the control and transport layer. This fork defaults to Cloudflare; `--gateway vercel` selects the upstream path.
-- **Provider** hosts the request and owns its billing or quota, such as Google, OpenRouter, Fal, or Replicate.
-- **Creator** made the model. For example, `openrouter/google/gemini-...` means the Cloudflare gateway sends the request to the OpenRouter provider for a model created by Google.
-- **Model preference** is this fork's saved route for a use case such as default, best, cheapest, or best free. It must include the provider when cost or eligibility depends on the route.
+## Follow one request
 
-The command roles follow the same separation:
+For `ai text -m gemini-3.8-flash --fallbacks gpt-5.6-sol "hello"`:
 
-| Need                                                   | Command                                                        |
-| ------------------------------------------------------ | -------------------------------------------------------------- |
-| Generate                                               | `ai text`, `ai image`, `ai video`, `ai audio`                  |
-| Choose a model                                         | `ai models`, with `--free`, `--best`, `--cheapest`, or filters |
-| See model hosts and their setup                        | `ai providers`                                                 |
-| See or override the routing layer                      | `ai gateways`                                                  |
-| Diagnose credentials, catalogs, and optional inference | `ai doctor`                                                    |
+1. `options.ts` checks the flags. `lib/models.ts` expands the preferred alias using `model-preferences.ts`.
+2. `commands/text.ts` passes its parsed routing options and the `text` modality explicitly to `runJobs`. The modality controls recovery safety; the output label is only presentation.
+3. `generation.ts` builds the ordered candidates and applies any explicit provider or free-only restriction. It does not recursively add the fallback model's own list.
+4. `fallback.ts` runs each distinct candidate at most once. `gateway.ts` supplies the model instance and provider-specific transport for each attempt.
+5. `jobs.ts` saves the result and reports the requested route, actual successful route and attempts. Diagnostics go to stderr; JSON stays on stdout.
 
-## Fork invariants
+There is no hidden async routing context. The caller passes the options that determine recovery. The existing `AI_CLI_FREE_ONLY` scope remains for the Workers AI billing guard and is restored after the command.
 
-- Cloudflare AI Gateway `ai-cli` is the default. Vercel remains an explicit override.
-- Provider credentials stay in Cloudflare Provider Keys under the `default` alias. Cloudflare mode must not read, persist, or forward local provider keys.
-- Curated choices use complete provider routes so billing and free-tier eligibility are unambiguous.
-- Human output favors the next useful decision. Detailed metadata stays behind `--details`; complete structured data stays available through `--json`.
-- Fork hooks in upstream-owned files stay small and covered by tests.
+## Behavior to preserve
 
-## Code ownership
+- Cloudflare AI Gateway `ai-cli` is the default. Provider credentials stay in Cloudflare under alias `default`; requests carry gateway authentication and strip provider headers/query keys.
+- **Gateway** is transport; **provider** is the billing host; **creator** made the model. `openrouter/openai/gpt-5.6-sol` selects OpenRouter for an OpenAI model.
+- `--provider` constrains every fallback. Explicit conflicting fallback routes fail before inference. `--free` excludes paid or unverified fallback routes.
+- Cloudflare recovery owns retry attempts and disables SDK retries. Vercel retains the upstream SDK retry defaults and does not use Cloudflare fallback routes.
+- Each generation attempt receives the command timeout. Cancelling stops recovery. An uncertain media submission or failed poll must not create another job; only a confirmed eligible rejection can recover.
+- Workers AI remains disabled by choice. Its retained adapter in `workers-ai.ts` still enforces its billing checks if explicitly enabled in the future.
 
-| Change                                                                  | File                                                                                       |
-| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| Preferred aliases, defaults and ordered fallback choices                | [shared preferences](https://github.com/patricksrail/bricks/blob/main/ai/preferences.json) |
-| Provider capabilities, authentication, billing nuances and source links | `providers.ts`                                                                             |
-| Preference loading and validation                                       | `preferences.ts`                                                                           |
-| Live provider catalogs and free-model discovery                         | `catalog.ts`, `google-pricing.ts`                                                          |
-| Model selection and gateway-dependent defaults                          | `selection.ts`, `defaults.ts`                                                              |
-| Model browsing and command routing flags                                | `models-command.ts`, `options.ts`                                                          |
-| Doctor, provider and gateway commands                                   | `diagnostics.ts`                                                                           |
-| Shared fork-only wrapping and terminal headings                         | `output.ts`                                                                                |
-| Failure recovery and alternatives                                       | `alternatives.ts`                                                                          |
-| Disabled Workers AI adapter and billing guard                           | `workers-ai.ts`                                                                            |
+## Documentation and maintenance
 
-`providers.ts` is the executable source for provider names, catalog URLs, pricing URLs, authentication requirements, and short caveats. Save canonical provider URLs there when research finds them. [shared preferences](https://github.com/patricksrail/bricks/blob/main/ai/preferences.json) is the only place to edit the curated route choices. Do not copy either data set into command implementations.
+[Package README](../../README.md) explains installation and commands. [Provider guide](../../../../docs/providers.md) explains transport and billing. [Handoff](../../../../HANDOFF.md) records verified account state; [Learnings](../../../../LEARNINGS.md) records reusable findings; [Upstream sync](../../../../docs/upstream-sync.md) covers merges. Keep user-facing changes reflected in the package README, website docs and changelog.
 
-## Integration outside this folder
+[bricks/ai](https://github.com/patricksrail/bricks/tree/main/ai) is a separate, evolving collection of reusable examples. It may lag this implementation. Consult this CLI for current routing, provider behavior and model choices; a change to either repository does not silently change the other.
 
-- [`../lib/gateway.ts`](../lib/gateway.ts) contains the original Cloudflare transport, stored-key authentication and media routing. It consumes this folder's provider registry.
-- [`../lib/models.ts`](../lib/models.ts) selects the backend; the command files and [`../index.ts`](../index.ts) register fork options and diagnostics.
-- [`../lib/jobs.ts`](../lib/jobs.ts) announces the selected model and attaches failure suggestions.
-- [`../../../../scripts/mac-ai.mjs`](../../../../scripts/mac-ai.mjs) is Patrick's local launcher. It loads Cloudflare configuration from the canonical ignored environment file.
-
-Keep these integration points when merging upstream. Moving existing transport files solely for tidiness would create more rename conflicts without removing the need for these hooks.
-
-## Context and verification
-
-Each durable fact has one home:
-
-| Information                                                                                         | Canonical home                                                                             |
-| --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| Installation, commands, examples, and the shortest path for a user                                  | [Package README](../../README.md)                                                          |
-| Stable routing, authentication, billing behavior, source links, and provider extension checklist    | [Provider guide](../../../../docs/providers.md)                                            |
-| Provider and pricing catalog URLs consumed by the CLI                                               | [`providers.ts`](providers.ts)                                                             |
-| Curated default, best, cheapest, and best-free routes                                               | [shared preferences](https://github.com/patricksrail/bricks/blob/main/ai/preferences.json) |
-| Reusable verified behavior and implementation gotchas that required research                        | [Learnings](../../../../LEARNINGS.md)                                                      |
-| Current account configuration, authorized caps, live test results, and unresolved operational state | [Handoff](../../../../HANDOFF.md)                                                          |
-| Merge procedure and invariants to recheck                                                           | [Upstream sync](../../../../docs/upstream-sync.md)                                         |
-| User-visible history                                                                                | [Changelog](../../../../CHANGELOG.md)                                                      |
-
-`.scratchpad/` contains disposable captures, generated samples, and test logs. Deleting it must not remove a fact, source URL, decision, or reproduction step needed by the next session.
-
-## Adding or changing a provider
-
-1. Update `providers.ts` with its canonical catalog, pricing, and API documentation URLs.
-2. Implement catalog or transport behavior in the appropriate adapter without changing model preferences implicitly.
-3. Update [shared preferences](https://github.com/patricksrail/bricks/blob/main/ai/preferences.json) only when the intended curated choice changed.
-4. Add a stable behavioral test. Keep paid live probes explicit and record reusable results in the provider guide or Learnings.
-5. Update the package README, website docs, and changelog for user-visible behavior.
-
-## Possible shared `ai` workspace
-
-Patrick may later create a broader `ai` workspace for "how to call AI" across applications: shared authentication guidance, provider samples, and perhaps a reusable agent skill. That has not been implemented here. When it is, keep CLI commands, terminal presentation, and upstream integration in this repository; extract provider-neutral examples and authentication knowledge to one imported or generated source instead of maintaining copied guidance in several projects.
-
-From the repository root, run `bun test packages/ai-cli/src`, `bun run typecheck`, and `bun run --cwd packages/ai-cli build`. Rebuild before testing the installed `ai`. Live generation may spend provider credits; Workers AI is disabled by choice; its retained guard verifies free-plan eligibility or the authorized gateway cap. See the provider guide before revisiting it.
+From the repository root, run `bun install`, `bun run test`, `bun run typecheck`, and `bun run build`. Rebuild before testing the installed `ai`. These commands require no bricks checkout or special Git URL configuration.

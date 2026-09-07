@@ -5,7 +5,7 @@ import {
   parseProvider,
   type CatalogEntry,
 } from "./catalog.js";
-import { modelPreferences, preferenceLocation } from "./preferences.js";
+import { modelPreferences, preferenceLocation } from "./model-preferences.js";
 import { FREE_PROVIDERS } from "./providers.js";
 
 export interface SelectionOptions {

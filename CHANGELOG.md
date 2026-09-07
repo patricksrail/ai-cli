@@ -2,9 +2,14 @@
 
 ## Unreleased
 
-- **Shared preferences and aliases** - Consume the pinned bricks AI library; `ai models --preferred [--json]` lists curated aliases with explicit provider routes and CK IDs; `--provider` chooses an alias’s billing host
+- **Standalone CLI restored** - Removed the unapproved bricks dependency and restored local preferences/authentication; kept aliases, preferred listings, fallbacks and attempt reporting
+- **Readable recovery flow** - Commands pass routing options explicitly; `generation.ts` chooses routes, `fallback.ts` handles attempts, and `alternatives.ts` only suggests catalog matches. Added purpose comments, section headers and an ownership walkthrough
+- **Vercel retry correction** - Preserve upstream SDK retries in Vercel mode; only Cloudflare uses the CLI fallback loop, with an end-to-end regression test
+
+
+- **Local preferences and aliases** - Keep model choices and expansion self-contained in ai-cli; `ai models --preferred [--json]` lists curated aliases with explicit provider routes and CK IDs; `--provider` chooses an alias’s billing host
 - **Failure recovery** - Saved or explicit `--fallbacks` recover eligible errors while preserving free/host restrictions; `--no-fallback` pins one attempt. JSON includes original request, actual route, attempts and failures. Media polling failures do not resubmit jobs
-- **Integration examples** - README links the shared curl, AI SDK and Python recipes and the project call matrix; documents private Git dependency installation
+- **Integration examples** - README links the separate, evolving bricks recipes and project matrix; CLI installation needs no private library dependency
 
 
 - **Upstream 0.4.4 sync** - Includes JPEG/WebP terminal previews while preserving fork routing and response IDs; fork pushes do not publish the upstream npm package

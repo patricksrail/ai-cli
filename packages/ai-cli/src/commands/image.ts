@@ -1,7 +1,8 @@
 import { generateImage, generateText, type JSONValue } from "ai";
 
 import { cloudflareImageModels } from "../fork/catalog.js";
-import { addRoutingOptions } from "../fork/options.js";
+import { generationRetryOptions } from "../fork/generation.js";
+import { addRoutingOptions, type RoutingOptions } from "../fork/options.js";
 import type { Command } from "../lib/command.js";
 import { errorMessage } from "../lib/errors.js";
 import {
@@ -28,7 +29,7 @@ import { addTimeoutOption, timeoutMs } from "../lib/timeout.js";
 const DEFAULT_CONCURRENCY = 4;
 const DEFAULT_TIMEOUT_MS = 300_000;
 
-interface ImageOptions {
+interface ImageOptions extends RoutingOptions {
   model?: string;
   output?: string;
   image?: string[];
@@ -178,7 +179,7 @@ export function registerImageCommand(program: Command) {
               (m) => m.id === modelId
             )?.creator;
             const result = await generateText({
-              maxRetries: 0,
+              ...generationRetryOptions(),
               headers: {
                 "http-referer": "https://github.com/vercel-labs/ai-cli",
                 "x-title": "ai-cli",
@@ -209,7 +210,7 @@ export function registerImageCommand(program: Command) {
           }
 
           const result = await generateImage({
-            maxRetries: 0,
+            ...generationRetryOptions(),
             headers: {
               "http-referer": "https://github.com/vercel-labs/ai-cli",
               "x-title": "ai-cli",
@@ -231,6 +232,8 @@ export function registerImageCommand(program: Command) {
         },
         {
           noun: "image",
+          modality: "image",
+          routing: opts,
           format: "image",
           outputPath: opts.output,
           quiet: opts.quiet,

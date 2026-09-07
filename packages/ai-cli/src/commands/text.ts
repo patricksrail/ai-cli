@@ -5,7 +5,8 @@ import {
   type TextPart,
 } from "ai";
 
-import { addRoutingOptions } from "../fork/options.js";
+import { generationRetryOptions } from "../fork/generation.js";
+import { addRoutingOptions, type RoutingOptions } from "../fork/options.js";
 import type { Command } from "../lib/command.js";
 import { errorMessage } from "../lib/errors.js";
 import { languageModel } from "../lib/gateway.js";
@@ -26,7 +27,7 @@ import { addTimeoutOption, timeoutMs } from "../lib/timeout.js";
 const DEFAULT_CONCURRENCY = 4;
 const DEFAULT_TIMEOUT_MS = 120_000;
 
-interface TextOptions {
+interface TextOptions extends RoutingOptions {
   model?: string;
   output?: string;
   format?: string;
@@ -129,7 +130,7 @@ export function registerTextCommand(program: Command) {
               "x-title": "ai-cli",
             },
             model: languageModel(modelId),
-            maxRetries: 0, // The shared fallback policy owns retry attempts.
+            ...generationRetryOptions(),
             prompt: textPrompt,
             system: opts.system,
             maxOutputTokens: maxTokens,
@@ -145,6 +146,8 @@ export function registerTextCommand(program: Command) {
         },
         {
           noun: "text",
+          modality: "text",
+          routing: opts,
           format,
           outputPath: opts.output,
           quiet: opts.quiet,

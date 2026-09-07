@@ -107,4 +107,9 @@ Reproduce with gateway authentication enabled, no local provider keys, and the d
 
 ## Private shared library installation (2026-09-07)
 
-On macOS with Bun 1.3.5, private GitHub archive dependencies returned 404 despite working `git ls-remote` and push. Pin the explicit `git+ssh://git@github.com/patricksrail/bricks.git#<commit>` dependency and use the invocation-scoped HTTPS URL rewrite in README; Bun then uses Git’s existing credential helper. No token needs to be printed or saved and no global Git setting needs changing. Committed dist/declarations make the pinned dependency immediately importable.
+Historical note: ai-cli no longer depends on bricks; no special Git installation is needed. During the removed integration, on macOS with Bun 1.3.5, private GitHub archive dependencies returned 404 despite working `git ls-remote` and push. Pin the explicit `git+ssh://git@github.com/patricksrail/bricks.git#<commit>` dependency and use the invocation-scoped HTTPS URL rewrite in README; Bun then uses Git’s existing credential helper. No token needs to be printed or saved and no global Git setting needs changing. Committed dist/declarations make the pinned dependency immediately importable.
+
+
+## Preserve upstream retry behavior when adding fallback (2026-09-07)
+
+In ai-cli with AI SDK 7.0.84, unconditionally setting `maxRetries: 0` also disabled retries for the explicit Vercel route, which did not use the replacement Cloudflare loop. `generationRetryOptions()` now leaves the SDK default untouched in Vercel mode. A CLI subprocess regression returns HTTP 503 once, then succeeds on the same Vercel route; Cloudflare fallback tests remain separate. Keep retry ownership explicit when adding another gateway.

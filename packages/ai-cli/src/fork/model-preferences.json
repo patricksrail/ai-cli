@@ -1,0 +1,137 @@
+{
+  "dateUpdated": "2026-09-07",
+  "defaults": {
+    "text": "google/gemini-3.8-flash",
+    "image": "fal/fal-ai/flux/schnell",
+    "video": "replicate/prunaai/p-video",
+    "speech": "fal/fal-ai/minimax/speech-02-turbo",
+    "transcription": "fal/fal-ai/wizper"
+  },
+  "best": {
+    "text": "openrouter/google/gemini-3.1-pro-preview",
+    "video": "fal/minimax/h3-max"
+  },
+  "cheapest": {
+    "text": "openrouter/openai/gpt-5.6-luna",
+    "image": "fal/fal-ai/sana"
+  },
+  "bestFree": {
+    "text": ["google/gemini-3.8-flash", "openrouter/openrouter/free"]
+  },
+  "notes": {
+    "best": "Editorial preferences, not an objective benchmark. Gemini Pro is provisional; Patrick selected H3 Max for video.",
+    "bestFree": "Prefer direct Google 3.8 Flash when free-tier eligible; OpenRouter free router is an availability fallback, not a quality ranking.",
+    "google": "Google free-tier eligibility is model metadata. Paid projects pay standard rates; confirm the stored key's project tier in AI Studio.",
+    "cheapest": "Saved inexpensive frontier preference, not a claim of the absolute lowest catalog price. Patrick suggested GPT-5.6 Luna for text.",
+    "routing": "Gateway defaults to Cloudflare separately from these provider/model IDs. Prefer OpenRouter where practical; direct Google is the free-text exception. Fal is the usual media host; the existing Replicate video default is retained until a replacement is selected.",
+    "cheapestImage": "Sana through Fal: $0.001 per megapixel listed 2026-09-06. Supports --size 512x512 for drafts; do not assume proportional sub-megapixel discounts or a verified invoice cost. This is the selected low-cost option, not an exhaustive global minimum.",
+    "fallbacks": "Ordered recovery routes after eligible failures; no implicit gateway bypass. Free-only callers must filter candidates against current free metadata. Media only retries a confirmed rejected submission, never an uncertain or running job."
+  },
+  "sources": {
+    "googleFree": "https://ai.google.dev/gemini-api/docs/pricing",
+    "googleBilling": "https://ai.google.dev/gemini-api/docs/billing",
+    "openrouterFree": "https://openrouter.ai/docs/api/api-reference/models/list-models-filtered-by-user-provider-preferences-privacy-settings-and-guardrails",
+    "openrouterRouter": "https://openrouter.ai/openrouter/free",
+    "video": "https://fal.ai/models/minimax/h3-max/text-to-video",
+    "cheapestImage": "https://fal.ai/models/fal-ai/sana",
+    "imagePricing": "https://fal.ai/docs/documentation/model-apis/pricing",
+    "openrouterImageFree": "https://openrouter.ai/blog/tutorials/image-generation-models/"
+  },
+  "preferred": [
+    {
+      "alias": "gemini-3.8-flash",
+      "label": "Gemini 3.8 Flash",
+      "route": "google/gemini-3.8-flash",
+      "modalities": ["text"],
+      "providers": {
+        "google": "gemini-3.8-flash",
+        "openrouter": "google/gemini-3.8-flash"
+      }
+    },
+    {
+      "alias": "gpt-5.6-luna",
+      "label": "GPT-5.6 Luna",
+      "route": "openrouter/openai/gpt-5.6-luna",
+      "modalities": ["text"],
+      "providers": {
+        "openrouter": "openai/gpt-5.6-luna",
+        "openai": "gpt-5.6-luna"
+      }
+    },
+    {
+      "alias": "gpt-5.6-sol",
+      "label": "GPT-5.6 Sol",
+      "route": "openrouter/openai/gpt-5.6-sol",
+      "modalities": ["text"],
+      "providers": {
+        "openrouter": "openai/gpt-5.6-sol",
+        "openai": "gpt-5.6-sol"
+      }
+    },
+    {
+      "alias": "gemini-pro",
+      "label": "Gemini 3.1 Pro (provisional best)",
+      "route": "openrouter/google/gemini-3.1-pro-preview",
+      "modalities": ["text"],
+      "providers": {
+        "openrouter": "google/gemini-3.1-pro-preview",
+        "google": "gemini-3.1-pro-preview"
+      }
+    },
+    {
+      "alias": "free-text",
+      "label": "OpenRouter free router",
+      "route": "openrouter/openrouter/free",
+      "modalities": ["text"]
+    },
+    {
+      "alias": "flux-schnell",
+      "label": "Flux Schnell",
+      "route": "fal/fal-ai/flux/schnell",
+      "modalities": ["image"]
+    },
+    {
+      "alias": "sana",
+      "label": "Sana (draft images)",
+      "route": "fal/fal-ai/sana",
+      "modalities": ["image"]
+    },
+    {
+      "alias": "p-video",
+      "label": "P-Video",
+      "route": "replicate/prunaai/p-video",
+      "modalities": ["video"]
+    },
+    {
+      "alias": "h3-max",
+      "label": "MiniMax H3 Max",
+      "route": "fal/minimax/h3-max",
+      "modalities": ["video"]
+    },
+    {
+      "alias": "speech-turbo",
+      "label": "MiniMax Speech 02 Turbo",
+      "route": "fal/fal-ai/minimax/speech-02-turbo",
+      "modalities": ["speech"]
+    },
+    {
+      "alias": "wizper",
+      "label": "Wizper",
+      "route": "fal/fal-ai/wizper",
+      "modalities": ["transcription"]
+    }
+  ],
+  "fallbacks": {
+    "google/gemini-3.8-flash": [
+      "openrouter/google/gemini-3.8-flash",
+      "openrouter/openai/gpt-5.6-luna"
+    ],
+    "openrouter/openai/gpt-5.6-luna": ["openai/gpt-5.6-luna"],
+    "openrouter/openai/gpt-5.6-sol": ["openai/gpt-5.6-sol"],
+    "openrouter/google/gemini-3.1-pro-preview": [
+      "google/gemini-3.1-pro-preview"
+    ],
+    "fal/fal-ai/flux/schnell": ["fal/fal-ai/sana"],
+    "fal/fal-ai/sana": ["fal/fal-ai/flux/schnell"]
+  }
+}

@@ -56,6 +56,7 @@ describe("runJobs", () => {
           }),
           {
             noun: "audio",
+            modality: "speech",
             format: "audio",
             json: true,
             quiet: true,
@@ -89,6 +90,7 @@ describe("runJobs", () => {
           }),
           {
             noun: "audio",
+            modality: "speech",
             format: "audio",
             json: true,
             quiet: true,
@@ -136,6 +138,7 @@ describe("runJobs", () => {
           },
           {
             noun: "text",
+            modality: "text",
             format: "txt",
             json: true,
             quiet: true,
@@ -174,6 +177,7 @@ describe("runJobs", () => {
         },
         {
           noun: "text",
+          modality: "text",
           format: "txt",
           outputPath: dir,
           quiet: true,
@@ -207,6 +211,7 @@ describe("runJobs", () => {
         }),
         {
           noun: "image",
+          modality: "image",
           format: "image",
           outputPath: dir,
           quiet: true,

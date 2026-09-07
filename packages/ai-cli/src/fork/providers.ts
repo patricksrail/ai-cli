@@ -3,7 +3,7 @@
  * Gateway is transport/control, provider is inference/billing, creator is model
  * authorship. Thus Cloudflare gateway + Workers AI provider is not two models.
  * Extension checklist: docs/providers.md. Editorial model choices are separate
- * in the shared bricks AI preferences so adding a provider never silently changes defaults.
+ * in the adjacent model-preferences.json so adding a provider never silently changes defaults.
  */
 export interface ProviderDefinition {
   summary: string;

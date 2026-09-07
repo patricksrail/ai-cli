@@ -1,6 +1,6 @@
 import { resolveGatewayBackend } from "../lib/gateway.js";
 import type { Modality } from "../lib/models.js";
-import { modelPreferences } from "./preferences.js";
+import { modelPreferences } from "./model-preferences.js";
 
 export function resolveDefaultModel(
   modality: Modality,

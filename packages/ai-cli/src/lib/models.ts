@@ -1,8 +1,6 @@
-import { resolveModel } from "@patricksrail/bricks/ai/preferences";
-
 import { asGatewayModels, fetchCloudflareCatalog } from "../fork/catalog.js";
 import { resolveDefaultModel } from "../fork/defaults.js";
-import { modelPreferences } from "../fork/preferences.js";
+import { resolveModel, modelPreferences } from "../fork/model-preferences.js";
 import { resolveGatewayBackend } from "./gateway.js";
 export type Modality = "text" | "image" | "video" | "speech" | "transcription";
 

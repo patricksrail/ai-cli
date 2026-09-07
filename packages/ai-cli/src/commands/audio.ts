@@ -5,7 +5,8 @@ import { fileURLToPath } from "url";
 
 import { generateSpeech, transcribe } from "ai";
 
-import { addRoutingOptions } from "../fork/options.js";
+import { generationRetryOptions } from "../fork/generation.js";
+import { addRoutingOptions, type RoutingOptions } from "../fork/options.js";
 import { previewAudioOutputs } from "../lib/audio-preview.js";
 import type { Command } from "../lib/command.js";
 import { errorMessage } from "../lib/errors.js";
@@ -30,7 +31,7 @@ const KNOWN_AUDIO_FORMATS = new Set([
   "pcm",
 ]);
 
-interface SpeakOptions {
+interface SpeakOptions extends RoutingOptions {
   model?: string;
   output?: string;
   format?: string;
@@ -47,7 +48,7 @@ interface SpeakOptions {
   timeout: number;
 }
 
-interface TranscribeOptions {
+interface TranscribeOptions extends RoutingOptions {
   model?: string;
   output?: string;
   format?: string;
@@ -120,7 +121,7 @@ export function registerAudioCommand(program: Command) {
         async (modelId) => {
           const abort = AbortSignal.timeout(timeoutMs(opts.timeout));
           const result = await generateSpeech({
-            maxRetries: 0,
+            ...generationRetryOptions(),
             headers: gatewayHeaders(),
             model: speechModel(modelId),
             text: speechText,
@@ -138,6 +139,8 @@ export function registerAudioCommand(program: Command) {
         },
         {
           noun: "audio",
+          modality: "speech",
+          routing: opts,
           format: "audio",
           extension: extensionForAudioFormat(outputFormat),
           outputPath: opts.output,
@@ -215,7 +218,7 @@ export function registerAudioCommand(program: Command) {
         async (modelId) => {
           const abort = AbortSignal.timeout(timeoutMs(opts.timeout));
           const result = await transcribe({
-            maxRetries: 0,
+            ...generationRetryOptions(),
             headers: gatewayHeaders(),
             model: transcriptionModel(modelId),
             audio: audioInput,
@@ -228,6 +231,8 @@ export function registerAudioCommand(program: Command) {
         },
         {
           noun: "transcript",
+          modality: "transcription",
+          routing: opts,
           format,
           outputPath: opts.output,
           quiet: opts.quiet,

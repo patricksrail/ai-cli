@@ -1,27 +1,20 @@
-import {
-  resolveModel,
-  type Provider,
-} from "@patricksrail/bricks/ai/preferences";
-
+/** Register CLI routing/selection flags. Generation constraints remain on the
+ * parsed options object and are passed by each command to runJobs. */
 import type { Command } from "../lib/command.js";
 import { resolveGatewayBackend } from "../lib/gateway.js";
 import type { Modality } from "../lib/models.js";
 import { parseProvider } from "./catalog.js";
-import { executionPolicy } from "./execution-policy.js";
-import { modelPreferences } from "./preferences.js";
+import type { GenerationPolicy } from "./generation.js";
+import { resolveModel, modelPreferences } from "./model-preferences.js";
 import { PROVIDERS } from "./providers.js";
 import { selectModel } from "./selection.js";
 
-export interface RoutingOptions {
+export interface RoutingOptions extends GenerationPolicy {
   gateway?: string;
-  provider?: string;
   model?: string;
   best?: boolean;
-  free?: boolean;
   cheapest?: boolean;
   quiet?: boolean;
-  fallback?: boolean;
-  fallbacks?: string;
 }
 
 export async function withGateway<T>(
@@ -49,19 +42,18 @@ export function qualifyProviderModels(
       "--provider requires --model with the provider's native model ID; browse with ai models --provider " +
         selected
     );
+  const preferences = modelPreferences();
   // Treat --model as the provider's native ID when --provider is explicit.
   // Thus --provider openrouter -m openai/gpt-5 routes to OpenRouter, and
   // --provider openrouter -m openrouter/free keeps OpenRouter's native namespace.
   return model
     .split(",")
     .map((id) => {
-      const alias = modelPreferences().preferred.find(
-        (m) => m.alias === id.trim()
-      );
+      const alias = preferences.preferred.find((m) => m.alias === id.trim());
       return alias
         ? resolveModel(id.trim(), {
-            provider: selected as Provider,
-            preferences: modelPreferences(),
+            provider: selected,
+            preferences,
           }).route
         : `${selected}/${id.trim()}`;
     })
@@ -167,17 +159,9 @@ export function addRoutingOptions(
             try {
               // Recheck free-only billing at inference, not just discovery.
               if (options.free) process.env.AI_CLI_FREE_ONLY = "1";
-              await executionPolicy.run(
-                {
-                  fallback: options.fallback,
-                  fallbacks: options.fallbacks?.split(",").map((m) => m.trim()),
-                  free: options.free,
-                  provider: options.provider
-                    ? parseProvider(options.provider)
-                    : undefined,
-                },
-                () => handler(argument, options)
-              );
+              // Commands pass these options into runJobs. The generation policy
+              // is explicit at the call site instead of hidden in async storage.
+              await handler(argument, options);
             } finally {
               if (previousFree === undefined)
                 delete process.env.AI_CLI_FREE_ONLY;

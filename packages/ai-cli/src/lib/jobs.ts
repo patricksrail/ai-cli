@@ -1,12 +1,20 @@
-import { FallbackError, type Attempt } from "@patricksrail/bricks/ai/fallback";
-
-import { generateWithGuidance } from "../fork/alternatives.js";
+/**
+ * Job execution and output. Generation policy is passed explicitly to the fork
+ * runner; this module saves bytes and reports which route actually produced them.
+ * File/preview failures are handled here and never trigger another inference.
+ */
+import { FallbackError, type Attempt } from "../fork/fallback.js";
+import {
+  generateWithGuidance,
+  type GenerationPolicy,
+} from "../fork/generation.js";
 import { errorMessage } from "./errors.js";
 import {
   supportsKittyGraphics,
   displayImage,
   displayVideoFrame,
 } from "./kitty.js";
+import type { Modality } from "./models.js";
 import type { OutputFormat } from "./output.js";
 import { writeOutput } from "./output.js";
 import { pMap } from "./p-map.js";
@@ -19,7 +27,10 @@ export interface Job {
 }
 
 export interface RunJobsOptions {
+  /** Human output label (e.g. audio); modality below controls recovery safety. */
   noun: string;
+  modality: Modality;
+  routing?: GenerationPolicy;
   format: OutputFormat;
   outputPath?: string;
   extension?: string;
@@ -70,6 +81,8 @@ export async function runJobs(
 ): Promise<RunJobsResult> {
   const {
     noun,
+    modality,
+    routing,
     format,
     outputPath,
     extension,
@@ -88,12 +101,11 @@ export async function runJobs(
     progress.start(`Generating ${noun} with ${modelId}`);
 
     try {
-      const execution = await generateWithGuidance(
-        modelId,
-        generate,
-        noun,
-        quiet
-      );
+      const execution = await generateWithGuidance(modelId, generate, {
+        modality,
+        quiet,
+        routing,
+      });
       const generated = normalizeGeneratedOutput(execution.value);
       const elapsed = Date.now() - start;
       progress.stop(`Generated ${noun} with ${execution.model}`);
@@ -210,12 +222,11 @@ export async function runJobs(
       multi.startLine(lineIdxs[i]);
       const genStart = Date.now();
       try {
-        const execution = await generateWithGuidance(
-          job.modelId,
-          generate,
-          noun,
-          quiet
-        );
+        const execution = await generateWithGuidance(job.modelId, generate, {
+          modality,
+          quiet,
+          routing,
+        });
         const generated = normalizeGeneratedOutput(execution.value);
         const genElapsed = Date.now() - genStart;
         const suffix = `${i + 1}`;
