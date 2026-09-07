@@ -51,6 +51,10 @@ Ordinary Workers AI generation verifies a provider-wide cap of at most `monthlyB
 
 `--free` remains strict and never treats a capped paid route as free. A Workers Free plan must be verified through subscription reads; unknown or inaccessible subscription state is refused. This account has Workers Paid and therefore does not advertise this image route as free. Existing Fal defaults remain unchanged.
 
+Cloudflare model-resolution error 2040 is distinct from an exhausted budget. An affected gateway rejected uncached Google/OpenRouter inference despite a Workers AI-only filter; see the [reproduction and limits of the diagnosis](../LEARNINGS.md#spend-limit-model-resolution-errors-and-cache-controls). Cached successes do not establish recovery.
+
+Gateway management changes must preserve authentication and other writable settings; see [safe gateway updates](../LEARNINGS.md#updating-gateway-settings-without-breaking-byok).
+
 ## Canonical sources
 
 The provider registry owns `catalogUrl`, `pricingUrl`, and supplementary `sources` for every provider. Read those saved URLs directly when refreshing information; search only when a source moves or does not answer the question. `ai providers --all --details` displays them and `--json` exposes the fields. Prices remain time-sensitive, so saved URLs avoid rediscovery, not verification. Fal and Replicate endpoint pages provide model-specific units and minimums beyond their general pricing pages.
