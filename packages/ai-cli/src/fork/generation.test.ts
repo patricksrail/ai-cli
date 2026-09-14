@@ -77,6 +77,7 @@ test("CLI recovers quota through the next saved host and reports actual route an
     requested_model: "google/gemini-3.8-flash",
     model: "openrouter/google/gemini-3.8-flash",
     success: true,
+    usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
     attempts: [
       {
         model: "google/gemini-3.8-flash",

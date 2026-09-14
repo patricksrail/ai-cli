@@ -57,6 +57,13 @@ export interface CloudflareModelRoute {
   modelId: string;
 }
 
+export class CloudflareGatewayConfigurationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CloudflareGatewayConfigurationError";
+  }
+}
+
 const EXPLICIT_PROVIDER_PREFIXES = new Map<string, CloudflareProvider>(
   PROVIDERS.map((id) => [id, id])
 );
@@ -82,13 +89,13 @@ export function resolveCloudflareGatewayConfig(
 ): CloudflareGatewayConfig {
   const accountId = env.CLOUDFLARE_ACCOUNT_ID?.trim();
   if (!accountId)
-    throw new Error(
+    throw new CloudflareGatewayConfigurationError(
       "CLOUDFLARE_ACCOUNT_ID is required when using the Cloudflare gateway"
     );
   const token =
     env.CLOUDFLARE_AI_GATEWAY_TOKEN?.trim() || env.CLOUDFLARE_API_TOKEN?.trim();
   if (!token)
-    throw new Error(
+    throw new CloudflareGatewayConfigurationError(
       "CLOUDFLARE_AI_GATEWAY_TOKEN or CLOUDFLARE_API_TOKEN is required when using the Cloudflare gateway"
     );
   return {
@@ -746,7 +753,17 @@ export function createCloudflareFalClientFetch(
     for (const [name, value] of Object.entries(gatewayHeaders)) {
       headers.set(name, value);
     }
-    return fetchFunction(input, { ...init, headers });
+    const response = await fetchFunction(input, { ...init, headers });
+    const method = (
+      init?.method ?? (input instanceof Request ? input.method : "GET")
+    ).toUpperCase();
+    if (method === "POST") {
+      await checkFalSubmission(
+        response,
+        headers.get("x-fal-target-url") ?? url
+      );
+    }
+    return response;
   };
 
   return Object.assign(cloudflareFetch, {
@@ -806,11 +823,34 @@ async function checkFalSubmission(
   response: Response,
   url: string
 ): Promise<void> {
-  if (response.status !== 402 && response.status !== 429) return;
+  if (![402, 403, 429].includes(response.status)) return;
   const detail = await response.clone().text();
+  // Fal's unlock bug has emitted both phrases for the same positive-balance lock:
+  // https://github.com/fal-ai/fal/issues/1163 · https://github.com/fal-ai/fal/issues/489
+  const balanceLocked = response.status === 403 && isFalBalanceLock(detail);
+  if (response.status === 403 && !balanceLocked) return;
   throw Object.assign(
     new Error(`Fal submission rejected (HTTP ${response.status}): ${detail}`),
-    { statusCode: response.status, requestSubmitted: false, url }
+    {
+      statusCode: response.status,
+      requestSubmitted: false,
+      url,
+      ...(balanceLocked ? { code: "TOP_UP" } : {}),
+    }
+  );
+}
+
+function isFalBalanceLock(body: string): boolean {
+  let detail = body;
+  try {
+    const parsed: unknown = JSON.parse(body);
+    if (isRecord(parsed) && typeof parsed.detail === "string")
+      detail = parsed.detail;
+  } catch {
+    // Plain-text provider errors use the same exact message.
+  }
+  return /^User is locked\.\s*Reason:\s*(?:TOP_UP\b|Exhausted balance\b)/i.test(
+    detail.trim()
   );
 }
 

@@ -106,13 +106,21 @@ describe("resolveGatewayBackend", () => {
 describe("resolveCloudflareGatewayConfig", () => {
   test("requires an account and a gateway token", () => {
     expect(() => resolveCloudflareGatewayConfig({})).toThrow(
-      "CLOUDFLARE_ACCOUNT_ID is required"
+      expect.objectContaining({
+        name: "CloudflareGatewayConfigurationError",
+        message: expect.stringContaining("CLOUDFLARE_ACCOUNT_ID is required"),
+      })
     );
 
     expect(() =>
       resolveCloudflareGatewayConfig({ CLOUDFLARE_ACCOUNT_ID: "account" })
     ).toThrow(
-      "CLOUDFLARE_AI_GATEWAY_TOKEN or CLOUDFLARE_API_TOKEN is required"
+      expect.objectContaining({
+        name: "CloudflareGatewayConfigurationError",
+        message: expect.stringContaining(
+          "CLOUDFLARE_AI_GATEWAY_TOKEN or CLOUDFLARE_API_TOKEN is required"
+        ),
+      })
     );
   });
 
@@ -328,6 +336,38 @@ describe("createCloudflareFalFetch", () => {
       false
     );
   });
+
+  test("marks Fal balance locks as rejected submissions rather than auth errors", async () => {
+    for (const [detail, code] of [
+      ["User is locked. Reason: TOP_UP.", "TOP_UP"],
+      [
+        "User is locked. Reason: Exhausted balance. Top up your balance at fal.ai/dashboard/billing.",
+        "TOP_UP",
+      ],
+    ]) {
+      const { fetchFunction } = sequentialFetch([
+        jsonResponse({ detail }, 403),
+      ]);
+      const falFetch = createCloudflareFalFetch(FAL_BASE_URL, fetchFunction);
+
+      await expect(
+        falFetch(`${FAL_BASE_URL}/fal-ai/flux/schnell`, { method: "POST" })
+      ).rejects.toMatchObject({
+        code,
+        statusCode: 403,
+        requestSubmitted: false,
+      });
+    }
+
+    const { fetchFunction } = sequentialFetch([
+      jsonResponse({ detail: "User is locked. Reason: Admin lock." }, 403),
+    ]);
+    const response = await createCloudflareFalFetch(
+      FAL_BASE_URL,
+      fetchFunction
+    )(`${FAL_BASE_URL}/fal-ai/flux/schnell`, { method: "POST" });
+    expect(response.status).toBe(403);
+  });
 });
 
 describe("createCloudflareFalClientFetch", () => {
@@ -354,6 +394,36 @@ describe("createCloudflareFalClientFetch", () => {
     expect(
       new Headers(calls[1]?.init?.headers).has("cf-aig-authorization")
     ).toBe(false);
+  });
+
+  test("marks only official-client POST balance locks as rejected submissions", async () => {
+    const locked = () =>
+      jsonResponse({ detail: "User is locked. Reason: TOP_UP." }, 403);
+    const { fetchFunction } = sequentialFetch([locked(), locked()]);
+    const falClientFetch = createCloudflareFalClientFetch(
+      { "cf-aig-authorization": "Bearer cloudflare-token" },
+      fetchFunction
+    );
+    const submitTarget = "https://queue.fal.run/minimax/h3-max/text-to-video";
+
+    await expect(
+      falClientFetch(FAL_BASE_URL, {
+        method: "POST",
+        headers: { "x-fal-target-url": submitTarget },
+      })
+    ).rejects.toMatchObject({
+      code: "TOP_UP",
+      requestSubmitted: false,
+      url: submitTarget,
+    });
+
+    const poll = await falClientFetch(FAL_BASE_URL, {
+      method: "GET",
+      headers: {
+        "x-fal-target-url": `${submitTarget}/requests/id/status`,
+      },
+    });
+    expect(poll.status).toBe(403);
   });
 });
 

@@ -90,6 +90,8 @@ function failureKind(
   if (details.name === "AbortError") return "cancelled";
   if (details.name === "TimeoutError" || details.code === "ETIMEDOUT")
     return "timeout";
+  if (details.name === "CloudflareGatewayConfigurationError") return "auth";
+  if (details.code === "TOP_UP") return "quota";
   if (statusCode === 401 || statusCode === 403) return "auth";
   if (statusCode === 402 || statusCode === 429) return "quota";
   if (
@@ -117,7 +119,8 @@ function rejectedMediaSubmission(
   details: Record<string, unknown>,
   statusCode?: number
 ): boolean {
-  if (statusCode !== 402 && statusCode !== 429) return false;
+  if (![402, 429].includes(statusCode ?? 0) && details.code !== "TOP_UP")
+    return false;
   if (details.requestSubmitted === false) return true;
   const requestUrl = typeof details.url === "string" ? details.url : "";
   // These are submission endpoints. /predictions/<id>, for example, is a poll

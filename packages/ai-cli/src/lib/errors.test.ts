@@ -19,6 +19,39 @@ describe("errorMessage", () => {
     expect(errorMessage(error)).toBe("Model endpoint not found");
   });
 
+  test("keeps safe provider fields that explain an invalid request", () => {
+    const error = Object.assign(new Error("Bad Request"), {
+      responseBody: JSON.stringify({
+        error: {
+          message: "maxOutputTokens must be at least 16",
+          type: "invalid_request_error",
+          param: "max_output_tokens",
+          code: "integer_below_min_value",
+        },
+      }),
+    });
+
+    expect(errorMessage(error)).toBe(
+      "maxOutputTokens must be at least 16 (code: integer_below_min_value; type: invalid_request_error; param: max_output_tokens)"
+    );
+  });
+
+  test("keeps numeric Google error codes and status names", () => {
+    const error = {
+      responseBody: JSON.stringify({
+        error: {
+          message: "Quota exhausted",
+          code: 429,
+          status: "RESOURCE_EXHAUSTED",
+        },
+      }),
+    };
+
+    expect(errorMessage(error)).toBe(
+      "Quota exhausted (code: 429; status: RESOURCE_EXHAUSTED)"
+    );
+  });
+
   test("formats provider validation fields", () => {
     const error = Object.assign(new Error("Unprocessable Entity"), {
       body: {

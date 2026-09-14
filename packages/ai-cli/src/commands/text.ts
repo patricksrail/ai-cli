@@ -142,6 +142,14 @@ export function registerTextCommand(program: Command) {
             id:
               responseIdFromHeaders(result.response.headers) ??
               result.response.id,
+            // Keep standardized counts for automation; raw provider usage can
+            // be large and remains available in Cloudflare request logs.
+            usage: {
+              inputTokens: result.usage.inputTokens,
+              outputTokens: result.usage.outputTokens,
+              totalTokens: result.usage.totalTokens,
+              outputTokenDetails: result.usage.outputTokenDetails,
+            },
           };
         },
         {

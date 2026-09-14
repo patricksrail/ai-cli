@@ -47,6 +47,10 @@
 
 ### Bug Fixes
 
+- **Provider failure details** - Preserve safe provider `code`, `type`, `status`, and `param` fields, and classify missing Cloudflare gateway credentials as an authentication failure
+- **Fal balance locks** - Report Fal `TOP_UP` responses as confirmed quota rejections instead of authentication failures
+- **Text usage metadata** - Include standardized token and reasoning counts in successful `ai text --json` results
+- **Google free-model metadata** - Recognize the stable Gemini 3.5 Flash, 2.5 Flash, and 2.5 Flash-Lite free-tier rows from Google's current model and pricing pages
 - **Cloudflare media routing** - Fal queue requests, Replicate prediction polling, and provider-hosted Veo and OpenRouter video downloads stay on Cloudflare BYOK routes
 - **Provider schema compatibility** - Fal transcription defaults to accepted segment chunks and Replicate Flux 2 reference images use the current `input_images` field
 - **Fal publisher video paths** - Fal video endpoints outside the `fal-ai/` namespace retain their exact publisher path instead of receiving an invalid extra prefix

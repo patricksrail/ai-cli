@@ -64,6 +64,13 @@ test("Google source metadata is exact and distinguishes eligibility from zero bi
   expect(google().freeTier?.condition).toContain("paid projects");
   expect(google().free).toBeUndefined();
   expect(googleFreeTier("gemini-3.8-flash")).toBeDefined();
+  for (const stableFreeModel of [
+    "gemini-3.5-flash",
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+  ]) {
+    expect(googleFreeTier(stableFreeModel)).toBeDefined();
+  }
   expect(googleFreeTier("gemini-3.1-pro-preview")).toBeUndefined();
   expect(googleFreeTier("gemini-3.8-flash-image")).toBeUndefined();
 });

@@ -43,6 +43,15 @@ test("authentication, invalid input, unknown errors and cancellation stop recove
   }
 });
 
+test("missing local gateway credentials are classified as authentication", () => {
+  expect(
+    classifyFailure({
+      name: "CloudflareGatewayConfigurationError",
+      message: "CLOUDFLARE_AI_GATEWAY_TOKEN is required",
+    })
+  ).toEqual({ kind: "auth", statusCode: undefined, eligible: false });
+});
+
 test("media submission rejection differs from polling errors and uncertain jobs", () => {
   const endpoint =
     "https://gateway.ai.cloudflare.com/v1/account/gateway/replicate/predictions";
@@ -61,6 +70,12 @@ test("media submission rejection differs from polling errors and uncertain jobs"
   expect(classifyFailure({ name: "TimeoutError" }, "video").eligible).toBe(
     false
   );
+  expect(
+    classifyFailure(
+      { code: "TOP_UP", statusCode: 403, requestSubmitted: false },
+      "image"
+    )
+  ).toEqual({ kind: "quota", statusCode: 403, eligible: true });
 });
 
 test("an observer error never replays a generation that already succeeded", async () => {

@@ -70,6 +70,14 @@ export interface GeneratedOutput {
   data: Buffer | string;
   id?: string;
   mediaType?: string;
+  usage?: TokenUsage;
+}
+
+export interface TokenUsage {
+  inputTokens?: number;
+  outputTokens?: number;
+  totalTokens?: number;
+  outputTokenDetails?: { textTokens?: number; reasoningTokens?: number };
 }
 
 type GenerateResult = Buffer | string | GeneratedOutput;
@@ -131,6 +139,7 @@ export async function runJobs(
               model: execution.model,
               requested_model: modelId,
               attempts: execution.attempts,
+              ...(generated.usage ? { usage: generated.usage } : {}),
               elapsed_ms: elapsed,
               success: true,
               file: path,
@@ -207,6 +216,7 @@ export async function runJobs(
     model: string;
     requested_model: string;
     attempts: Attempt[];
+    usage?: TokenUsage;
     error?: string;
     success: boolean;
     elapsed_ms: number;
@@ -257,6 +267,7 @@ export async function runJobs(
           model: execution.model,
           requested_model: job.modelId,
           attempts: execution.attempts,
+          usage: generated.usage,
           success: true,
           elapsed_ms: genElapsed,
           file: path,
@@ -304,6 +315,7 @@ export async function runJobs(
         model: r.success ? r.model : null,
         requested_model: r.requested_model,
         attempts: r.attempts,
+        ...(r.usage ? { usage: r.usage } : {}),
         ...(r.error ? { error: r.error } : {}),
         elapsed_ms: r.elapsed_ms,
         success: r.success,

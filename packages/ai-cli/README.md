@@ -132,7 +132,7 @@ All commands support:
 --json                   Output metadata as JSON
 ```
 
-When using `--json`, stdout contains only metadata. Generated text, image, video and audio outputs are written to files even when stdout is piped.
+When using `--json`, stdout contains only metadata. Generated text, image, video and audio outputs are written to files even when stdout is piped. Text results include standardized token usage and reasoning-token counts when the provider reports them.
 
 Model IDs can be specified as `provider/model`, `creator/model`, or just `model-name`. Defaults and full IDs route without a catalog request in Cloudflare mode; short names use the configured providers. Ambiguous short names require a full ID:
 

@@ -67,10 +67,26 @@ function providerDetail(value: unknown): string | undefined {
   if (isRecord(value.error)) {
     const nested =
       formatDetail(value.error.detail) ?? nonEmpty(value.error.message);
-    if (nested) return nested;
+    if (nested) return withProviderFields(nested, value.error);
   }
 
-  return nonEmpty(value.message);
+  const message = nonEmpty(value.message);
+  return message ? withProviderFields(message, value) : undefined;
+}
+
+function withProviderFields(
+  message: string,
+  value: Record<string, unknown>
+): string {
+  const fields = ["code", "type", "status", "param"].flatMap((key) => {
+    const field = value[key];
+    if (typeof field === "number" && Number.isFinite(field))
+      return [`${key}: ${field}`];
+    if (typeof field === "string" && field.trim())
+      return [`${key}: ${field.trim()}`];
+    return [];
+  });
+  return fields.length ? `${message} (${fields.join("; ")})` : message;
 }
 
 function formatDetail(value: unknown): string | undefined {
