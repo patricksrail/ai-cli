@@ -11,6 +11,7 @@ import { selectModel } from "./selection.js";
 
 export interface RoutingOptions extends GenerationPolicy {
   gateway?: string;
+  webSearch?: boolean;
   model?: string;
   best?: boolean;
   cheapest?: boolean;
@@ -97,6 +98,12 @@ export function addRoutingOptions(
       "--no-fallback",
       "Attempt only the selected model; disable saved fallback routes"
     );
+  if (modality === "text" || modality === "image") {
+    command.option(
+      "--no-web-search",
+      "Disable provider web search (enabled by default where supported)"
+    );
+  }
   return {
     action<TArgument, TOptions>(
       handler: (
@@ -154,6 +161,15 @@ export function addRoutingOptions(
                 options.provider,
                 options.model
               );
+            }
+            // --free promises free generation; hosted search can be billed
+            // separately even on a zero-token-price model (notably OpenRouter).
+            if (options.free && options.webSearch !== false) {
+              options.webSearch = false;
+              if (!options.quiet)
+                process.stderr.write(
+                  "Web search disabled by --free: search may be billed separately.\n"
+                );
             }
             const previousFree = process.env.AI_CLI_FREE_ONLY;
             try {

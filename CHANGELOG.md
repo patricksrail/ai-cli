@@ -16,6 +16,8 @@
 
 ### New Features
 
+- **Hosted web search** - Enable provider-native search for text and documented image models; add `--no-web-search`, keep `--free` free of separate search charges, and preserve citations in text/JSON. Live text checks pass; Nano Banana 2 image search checks failed on Fal and Replicate (2026-09-21).
+
 - **Central provider registry** - Routing capabilities and `ai providers --all` share provider auth, billing nuances and official sources
 - **Workers AI evaluated, left off** - Verified Flux generation and daily usage, then disabled CLI integration by request because the daily free allowance is only $0.11 in usage value. Fixed and renamed the shared CLI token; retained the authorized Workers AI-only $20 rolling-month gateway cap
 

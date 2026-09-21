@@ -68,6 +68,10 @@ test("CLI recovers quota through the next saved host and reports actual route an
   expect(result.code, result.stderr).toBe(0);
   expect(result.data).toBe("RECOVERED");
   expect(result.requests).toHaveLength(2);
+  expect(result.requests[0].body.tools).toEqual([{ googleSearch: {} }]);
+  expect(result.requests[1].body.tools).toEqual([
+    { type: "openrouter:web_search" },
+  ]);
   expect(
     result.requests.every(
       (r) => !r.providerAuth && r.gatewayAuth === "Bearer fixture-gateway"
@@ -177,6 +181,9 @@ test("free-only recovery chooses the verified free router, never the saved paid 
     "Hello",
   ]);
   expect(result.code, result.stderr).toBe(0);
+  expect(
+    result.requests.filter((r) => r.body).every((r) => !r.body.tools?.length)
+  ).toBe(true);
   expect(JSON.parse(result.stdout).results[0].model).toBe(
     "openrouter/openrouter/free"
   );
@@ -198,6 +205,9 @@ test("Vercel generation retains SDK retries without switching to Cloudflare", as
   expect(result.code, result.stderr).toBe(0);
   expect(result.data).toBe("VERCEL_RETRIED");
   expect(result.requests).toHaveLength(2);
+  expect(result.requests[0].body.tools).toMatchObject([
+    { type: "provider", id: "openai.web_search" },
+  ]);
   expect(
     result.requests.every(
       (request) =>

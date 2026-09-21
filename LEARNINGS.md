@@ -1,6 +1,6 @@
 ---
 date_created: 2026-08-29
-date_updated: 2026-09-06
+date_updated: 2026-09-21
 summary: Verified authenticated Cloudflare BYOK routing and provider-native media behavior for ai-cli.
 related:
   - https://developers.cloudflare.com/ai-gateway/usage/rest-api/
@@ -113,3 +113,11 @@ Historical note: ai-cli no longer depends on bricks; no special Git installation
 ## Preserve upstream retry behavior when adding fallback (2026-09-07)
 
 In ai-cli with AI SDK 7.0.84, unconditionally setting `maxRetries: 0` also disabled retries for the explicit Vercel route, which did not use the replacement Cloudflare loop. `generationRetryOptions()` now leaves the SDK default untouched in Vercel mode. A CLI subprocess regression returns HTTP 503 once, then succeeds on the same Vercel route; Cloudflare fallback tests remain separate. Keep retry ownership explicit when adding another gateway.
+
+## 2026-09-21: Hosted search belongs on the SDK request
+
+Environment: Node/Bun, AI SDK 7.0.84, Google 4.0.57, OpenAI 4.0.51 and OpenRouter 3.0.0 through Cloudflare BYOK. Provider-native tools worked for live news through Google, OpenAI and OpenRouter. Keep request-level tools explicit: an SDK model factory does not itself configure `generateText`/`streamText` tool registration. Bricks exposes `generationOptions()` for those callers and preserves raw model access.
+
+OpenRouter now documents the hosted `openrouter:web_search` server tool rather than the deprecated web plugin. This installed SDK serializes tool arguments at the top level, whereas the current native docs put them under `parameters`; omit optional arguments for the documented auto default. See [OpenRouter](https://openrouter.ai/docs/guides/features/server-tools/web-search) and the [validation report](research/web-search-validation-2026-09-21.md).
+
+Fal/Replicate Nano Banana 2 accepted their documented search flags but did not generate either news image tested. Matched sailboat controls succeeded with search on and off. Do not infer that search universally breaks generation, or that accepting a flag proves successful grounding. Keep these observations separate from the passing text checks.

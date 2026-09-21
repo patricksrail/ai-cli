@@ -1,6 +1,6 @@
 ---
 date_created: 2026-09-06
-date_updated: 2026-09-07
+date_updated: 2026-09-21
 summary: Where CLI behavior lives and how to follow model selection, routing and failure recovery.
 ---
 
@@ -15,6 +15,7 @@ Start here to understand or change Patrick's ai-cli behavior. The CLI is self-co
 | Preferred models, aliases, defaults, best/cheapest/free choices and fallback order  | [model-preferences.json](model-preferences.json)                         |
 | Read and validate those choices; expand aliases; produce the offline preferred feed | [model-preferences.ts](model-preferences.ts)                             |
 | Provider names, paths, capabilities, billing notes and source URLs                  | [providers.ts](providers.ts)                                             |
+| Hosted search tools and model-specific image flags | [web-search.ts](web-search.ts) |
 | Fetch catalogs and interpret Google free-tier metadata                              | [catalog.ts](catalog.ts), [google-pricing.ts](google-pricing.ts)         |
 | Select a default, best, cheapest or verified free model                             | [defaults.ts](defaults.ts), [selection.ts](selection.ts)                 |
 | Register command flags and apply the user's selection                               | [options.ts](options.ts)                                                 |

@@ -71,6 +71,7 @@ export interface GeneratedOutput {
   id?: string;
   mediaType?: string;
   usage?: TokenUsage;
+  sources?: unknown[];
 }
 
 export interface TokenUsage {
@@ -140,6 +141,7 @@ export async function runJobs(
               requested_model: modelId,
               attempts: execution.attempts,
               ...(generated.usage ? { usage: generated.usage } : {}),
+              ...(generated.sources ? { sources: generated.sources } : {}),
               elapsed_ms: elapsed,
               success: true,
               file: path,
@@ -217,6 +219,7 @@ export async function runJobs(
     requested_model: string;
     attempts: Attempt[];
     usage?: TokenUsage;
+    sources?: unknown[];
     error?: string;
     success: boolean;
     elapsed_ms: number;
@@ -268,6 +271,7 @@ export async function runJobs(
           requested_model: job.modelId,
           attempts: execution.attempts,
           usage: generated.usage,
+          sources: generated.sources,
           success: true,
           elapsed_ms: genElapsed,
           file: path,
@@ -316,6 +320,7 @@ export async function runJobs(
         requested_model: r.requested_model,
         attempts: r.attempts,
         ...(r.usage ? { usage: r.usage } : {}),
+        ...(r.sources ? { sources: r.sources } : {}),
         ...(r.error ? { error: r.error } : {}),
         elapsed_ms: r.elapsed_ms,
         success: r.success,

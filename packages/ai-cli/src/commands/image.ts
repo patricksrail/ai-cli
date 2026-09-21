@@ -3,6 +3,11 @@ import { generateImage, generateText, type JSONValue } from "ai";
 import { cloudflareImageModels } from "../fork/catalog.js";
 import { generationRetryOptions } from "../fork/generation.js";
 import { addRoutingOptions, type RoutingOptions } from "../fork/options.js";
+import {
+  imageSearchOptions,
+  webSearchTools,
+  searchRoute,
+} from "../fork/web-search.js";
 import type { Command } from "../lib/command.js";
 import { errorMessage } from "../lib/errors.js";
 import {
@@ -185,6 +190,10 @@ export function registerImageCommand(program: Command) {
                 "x-title": "ai-cli",
               },
               model: languageModel(modelId),
+              tools: webSearchTools(
+                searchRoute(modelId, "language").provider,
+                opts.webSearch
+              ),
               messages: [{ role: "user", content: messageContent }],
               abortSignal: abort,
               providerOptions: languageImageProviderOptions(
@@ -221,8 +230,13 @@ export function registerImageCommand(program: Command) {
             n: 1,
             size,
             aspectRatio,
-            providerOptions:
-              Object.keys(provOpts).length > 0 ? provOpts : undefined,
+            providerOptions: {
+              ...imageSearchOptions(
+                searchRoute(modelId, "image"),
+                opts.webSearch
+              ),
+              ...provOpts,
+            },
           });
           return {
             data: Buffer.from(result.image.uint8Array),

@@ -129,3 +129,9 @@ ai image "a sunset" --json
   The `--json` flag is useful for scripts and CI pipelines that need to know where files were saved and whether generation succeeded.
   Text results also include standardized input, output, total, and reasoning-token usage when the provider reports it.
 </Callout>
+
+## Web search
+
+Text calls enable hosted search by default through Google, OpenAI Responses or OpenRouter. The model chooses when to search; source links appear in text and in the `sources` field of JSON results. Pass `--no-web-search` to disable it. `--free` disables search because provider tool fees can be separate from token prices.
+
+Image search is enabled only for documented compatible models: Fal Nano Banana 2/Pro, Replicate Nano Banana 2, and Google's Gemini 3/3.1 image models. Other image models, video and audio do not receive search settings. September 21 live text checks passed, but Nano Banana 2 image-news checks failed on both Fal and Replicate; ordinary sailboat controls succeeded with search both on and off. Model support and successful news grounding are separate.

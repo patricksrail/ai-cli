@@ -7,6 +7,7 @@ import {
 
 import { generationRetryOptions } from "../fork/generation.js";
 import { addRoutingOptions, type RoutingOptions } from "../fork/options.js";
+import { webSearchTools, searchRoute } from "../fork/web-search.js";
 import type { Command } from "../lib/command.js";
 import { errorMessage } from "../lib/errors.js";
 import { languageModel } from "../lib/gateway.js";
@@ -130,6 +131,10 @@ export function registerTextCommand(program: Command) {
               "x-title": "ai-cli",
             },
             model: languageModel(modelId),
+            tools: webSearchTools(
+              searchRoute(modelId, "language").provider,
+              opts.webSearch
+            ),
             ...generationRetryOptions(),
             prompt: textPrompt,
             system: opts.system,
@@ -138,7 +143,8 @@ export function registerTextCommand(program: Command) {
             abortSignal: abort,
           });
           return {
-            data: result.text,
+            data: textWithSources(result.text, result.sources),
+            sources: result.sources,
             id:
               responseIdFromHeaders(result.response.headers) ??
               result.response.id,
@@ -201,4 +207,21 @@ function buildTextPrompt({
   }
 
   return [{ role: "user", content }];
+}
+
+/** Preserve clickable citations even when the provider puts them only in metadata. */
+function textWithSources(
+  text: string,
+  sources: Array<{ sourceType: string; url?: string; title?: string }>
+): string {
+  const missingLinks = new Map<string, string>();
+  for (const source of sources) {
+    if (source.sourceType !== "url" || !source.url || text.includes(source.url))
+      continue;
+    const title = (source.title || source.url).replace(/[[\]\n\r]/g, " ");
+    missingLinks.set(source.url, `- [${title}](${source.url})`);
+  }
+  return missingLinks.size
+    ? `${text}\n\nSources:\n${[...missingLinks.values()].join("\n")}`
+    : text;
 }

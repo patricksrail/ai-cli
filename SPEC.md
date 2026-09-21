@@ -1,6 +1,6 @@
 ---
 date_created: 2026-09-06
-date_updated: 2026-09-07
+date_updated: 2026-09-21
 summary: Required behavior of the Cloudflare BYOK CLI fork and provider-aware model discovery.
 related:
   - HANDOFF.md
@@ -13,6 +13,8 @@ related:
 Keep upstream ai-cli generation commands while using Patrick's stored Cloudflare BYOK providers by default. Discovery must match that routing and make large catalogs easy to browse.
 
 # Requirements
+
+- Hosted web search defaults on for supported text/image routes, with provider choices centralized in `src/fork/web-search.ts`, explicit opt-out, citation preservation and per-provider live validation. Free-only generation excludes separately billed search.
 
 - Cloudflare is the default gateway for text, image, video, speech, transcription, and discovery. Vercel remains an explicit option with its upstream defaults.
 - Local provider credentials are never read, persisted, or forwarded in Cloudflare mode. Stored Provider Keys use the default alias.

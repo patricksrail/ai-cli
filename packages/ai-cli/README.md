@@ -476,3 +476,19 @@ Default text recovery tries Google Gemini 3.8 Flash, then that model on OpenRout
 For media, only a confirmed HTTP 402/429 submission rejection permits another model. A failed poll, ambiguous timeout or server error does not prove that the original job was rejected, so it stops. Fallback models must accept the supplied media options. `--no-fallback` disables all saved route recovery.
 
 Progress and failures go to stderr. JSON reports `requested_model`, the successful `model` (null on failure), and ordered `attempts`; failures include the provider error and exit nonzero. Every attempt retains its full provider route. `ai providers <route>` finds catalog alternatives; those are suggestions, not verified inference. See the [project call matrix](https://github.com/patricksrail/bricks/blob/main/ai/MATRIX.md) and the evolving bricks recipes for curl, AI SDK, Python, structured output and streaming. Bricks is separate and may lag; this CLI is the reference for current behavior.
+
+## Web search defaults
+
+Text generation enables the billing provider's hosted search by default: Google Search grounding, OpenAI Responses `web_search`, or OpenRouter's `openrouter:web_search` server tool. The model decides whether to search. No MCP server or local search key is needed. Search may add provider charges, even when model tokens are free. `--free` disables search with a notice; `--no-web-search` explicitly disables it on text and image calls.
+
+```sh
+ai text -m openai/gpt-5.6-sol "Search today's news and cite sources"
+ai text -m openrouter/openai/gpt-5.6-sol --no-web-search "Rewrite this paragraph"
+ai image -m fal/fal-ai/nano-banana-2 --no-web-search "A blue sailboat"
+```
+
+The settings and authoritative source links live in [`src/fork/web-search.ts`](src/fork/web-search.ts). Tools are selected again for each fallback's actual provider. Text output includes clickable source links, and `--json` exposes the SDK's `sources` alongside usage and attempts. Sources are evidence returned by the provider; enabling search alone does not prove that a search ran. Unsupported text models can reject a search tool; use `--no-web-search` when deliberately selecting one.
+
+Image search is model-specific. Verified schemas expose `enable_web_search` for Fal Nano Banana 2/Pro (including their edit endpoints), `google_search` for Replicate Nano Banana 2, and `googleSearch` for Google's Gemini 3/3.1 image adapter. Unlisted image models receive no search options; speech, transcription and video have no blanket search setting. Vercel routes retain their creator IDs; unknown Vercel creators do not inherit OpenRouter tools.
+
+**Live checks, 2026-09-21:** Google Gemini 2.5 Flash Lite, OpenAI GPT-5.6 Sol and OpenRouter GPT-5.6 Sol answered the independently checked news question with citations in both ai-cli and bricks. The saved Google 3.8 Flash route returned quota errors; its preference is unchanged. Nano Banana 2 image-news checks failed on Fal and Replicate, while sailboat controls succeeded with search both on and off. Media search is configured from documented fields but is **not verified working**. See [the test report](../../research/web-search-validation-2026-09-21.md) before relying on it.
