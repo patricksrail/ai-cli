@@ -27,7 +27,7 @@ Nested provider IDs keep the route prefix and creator or owner, for example `ope
 
 A quota, billing, or credit error comes from the stored provider account. Add credit or enable billing there; changing the Cloudflare token does not change the provider balance.
 
-Fal video generation is asynchronous. ai-cli submits the request, polls its status, fetches the result, and downloads the video; do not call Fal's status URLs manually. Provider errors include Fal's `detail` or validation fields instead of an empty `Error:` line.
+Fal video generation is asynchronous. ai-cli submits the request, polls its status, fetches the result, and downloads the video; use the printed `ai video --resume <job-file>` command after a timeout or interruption to check that same job without submitting another. Handles are saved in `$XDG_STATE_HOME/ai-cli/video-jobs`, defaulting to `~/.local/state/ai-cli/video-jobs`. A client timeout does not cancel the provider job. See [Fal's queue documentation](https://fal.ai/docs/documentation/model-apis/inference/queue). Provider errors include Fal's `detail` or validation fields instead of an empty `Error:` line.
 
 ## Missing Vercel API key
 
@@ -66,7 +66,7 @@ Use `--timeout <seconds>` to allow a longer request without changing models. The
 ai image --timeout 600 "a detailed sprite atlas"
 ```
 
-If you are consistently hitting timeouts, a faster model variant is often the better fix (for example `bytedance/seedance-2.0-fast` instead of `bytedance/seedance-2.0`).
+For a queued video, resume the saved job with a longer `--timeout` before considering a new generation. The SDK’s separate ten-minute polling cap is disabled, so the CLI timeout is the only overall deadline. Fal can report `COMPLETED` and then return a validation error; the CLI retrieves that error. If Wan rejects automatic image dimensions, choose a supported `--aspect-ratio` explicitly before submitting a corrected job.
 
 ## `--quality` / `--style` warning
 

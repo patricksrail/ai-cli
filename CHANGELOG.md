@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Save asynchronous video job handles and add `ai video --resume` without resubmission; preserve Fal queue validation errors and honor explicit waits beyond the SDK’s ten-minute polling cap. Fal publisher models now expose submission/status separately so they support recovery too.
+
 - Leave hosted search off by default; retain explicit opt-in and add Gemini 2.5 Flash-Lite as the search test model.
 - Align AI SDK/provider adapters with upstream CLI 0.5.2; preserve standalone Cloudflare routing. Upstream adds typed evaluation, model discovery, SVG handling, and stdin/cancellation fixes; evaluation requires explicit Vercel selection.
 

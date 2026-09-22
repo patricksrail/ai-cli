@@ -430,7 +430,7 @@ describe("createCloudflareFalClientFetch", () => {
 describe("createCloudflareFalQueueVideoModel", () => {
   test("uses Fal's official Cloudflare proxy flow without changing publisher namespaces", async () => {
     let clientSettings: unknown;
-    let subscription: { endpointId: string; options: unknown } | undefined;
+    let submission: { endpointId: string; options: unknown } | undefined;
     const model = createCloudflareFalQueueVideoModel(
       "minimax/h3-max/text-to-video",
       {
@@ -441,8 +441,14 @@ describe("createCloudflareFalQueueVideoModel", () => {
       (settings) => {
         clientSettings = settings;
         return {
-          async subscribe(endpointId, options) {
-            subscription = { endpointId, options };
+          async submit(endpointId, options) {
+            submission = { endpointId, options };
+            return { request_id: "fal-request-id" };
+          },
+          async status() {
+            return { status: "COMPLETED" };
+          },
+          async result() {
             return {
               requestId: "fal-request-id",
               data: {
@@ -459,7 +465,7 @@ describe("createCloudflareFalQueueVideoModel", () => {
       }
     );
 
-    const result = await model.doGenerate!({
+    const started = await model.doStart!({
       prompt: "A paper boat crosses a puddle",
       n: 1,
       aspectRatio: "16:9",
@@ -475,6 +481,11 @@ describe("createCloudflareFalQueueVideoModel", () => {
       headers: { "x-title": "ai-cli", ignored: undefined },
     });
 
+    const result = await model.doStatus!({ operation: started.operation });
+    expect(result.status).toBe("completed");
+    if (result.status !== "completed")
+      throw new Error("Expected completed video");
+
     expect(clientSettings).toMatchObject({
       proxyUrl: { url: FAL_BASE_URL, when: "always" },
     });
@@ -482,7 +493,7 @@ describe("createCloudflareFalQueueVideoModel", () => {
       "function"
     );
     expect("credentials" in (clientSettings as object)).toBe(false);
-    expect(subscription).toEqual({
+    expect(submission).toEqual({
       endpointId: "minimax/h3-max/text-to-video",
       options: {
         input: {
@@ -496,8 +507,6 @@ describe("createCloudflareFalQueueVideoModel", () => {
         },
         abortSignal: undefined,
         headers: { "x-title": "ai-cli" },
-        logs: false,
-        mode: "polling",
       },
     });
     expect(result.videos).toEqual([
@@ -522,18 +531,21 @@ describe("createCloudflareFalQueueVideoModel", () => {
         CLOUDFLARE_API_TOKEN: "cloudflare-token",
       },
       () => ({
-        async subscribe(endpoint, options) {
+        async submit(endpoint, options) {
           endpointId = endpoint;
           input = options.input;
-          return {
-            requestId: "request",
-            data: { video: { url: "https://v3.fal.media/video.mp4" } },
-          };
+          return { request_id: "request" };
+        },
+        async status() {
+          return { status: "IN_PROGRESS" };
+        },
+        async result() {
+          throw new Error("Pending jobs must not fetch results");
         },
       })
     );
 
-    await model.doGenerate!({
+    const started = await model.doStart!({
       prompt: "Animate this",
       n: 1,
       aspectRatio: undefined,
@@ -548,6 +560,9 @@ describe("createCloudflareFalQueueVideoModel", () => {
       providerOptions: {},
     });
 
+    expect(
+      await model.doStatus!({ operation: started.operation })
+    ).toMatchObject({ status: "pending" });
     expect(endpointId).toBe("minimax/h3-max/image-to-video");
     expect(input?.image_url).toBe("https://example.com/input.png");
   });
@@ -560,26 +575,24 @@ describe("createCloudflareFalQueueVideoModel", () => {
         CLOUDFLARE_API_TOKEN: "cloudflare-token",
       },
       () => ({
-        async subscribe() {
+        async submit() {
+          return { request_id: "request" };
+        },
+        async status() {
+          return { status: "COMPLETED" };
+        },
+        async result() {
           return { requestId: "request", data: {} };
         },
       })
     );
 
     expect(
-      model.doGenerate!({
-        prompt: "prompt",
-        n: 1,
-        aspectRatio: undefined,
-        resolution: undefined,
-        duration: undefined,
-        fps: undefined,
-        seed: undefined,
-        image: undefined,
-        frameImages: undefined,
-        inputReferences: undefined,
-        generateAudio: undefined,
-        providerOptions: {},
+      model.doStatus!({
+        operation: {
+          endpointId: "minimax/h3-max/text-to-video",
+          requestId: "request",
+        },
       })
     ).rejects.toThrow("without a video result");
   });

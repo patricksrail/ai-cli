@@ -302,6 +302,7 @@ Quiver Arrow image models generate SVG through the upstream Vercel route (`--gat
 --aspect-ratio <W:H>     Aspect ratio (e.g. 16:9)
 --resolution <WxH>       Video resolution (e.g. 1920x1080 for 1080p)
 --duration <seconds>     Duration in seconds
+--resume <job-file>      Resume an existing job without another submission
 --no-preview             Disable inline video frame preview
 ```
 
@@ -315,6 +316,14 @@ ai video -m "fal-ai/minimax/h3-max" -i input.png "slowly dolly toward the subjec
 ```
 
 The H3 Max provider model selects Fal's documented [text-to-video](https://fal.ai/models/minimax/h3-max/text-to-video/api) or image-to-video endpoint from the input and handles queue submission, polling, and result retrieval inside the CLI. The exact endpoint forms, such as `fal/minimax/h3-max/text-to-video`, remain valid. Resolution support is model-dependent; H3 Max accepts 480p or 768p output, selected with a matching height such as `854x480` or `1366x768`.
+
+Video jobs that support the SDK start/status interface save a private recovery file under `$XDG_STATE_HOME/ai-cli/video-jobs` (default: `~/.local/state/ai-cli/video-jobs`). This includes native Fal video models and publisher endpoints such as H3 Max. The CLI prints the exact resume command as soon as the operation is saved. Files contain the model, gateway and provider operation, without prompts, input images or auth headers. Keep them private; completed handles are retained so a failed download/output write can be recovered. Delete a handle when you no longer need it.
+
+```bash
+ai video --resume /path/from/the/printed/command.json --timeout 1800 -o video.mp4
+```
+
+Resume only polls/downloads that same job; it never starts a replacement or uses fallback models. It requires the original gateway and provider access, and does not need the original prompt/image. A client timeout or Ctrl-C stops waiting, without cancelling the provider job. The explicit timeout controls the whole wait; the SDK's separate ten-minute polling cap is disabled. Fal's `COMPLETED` status can also mean failure: the CLI retrieves the result and reports its validation error. For Wan image-to-video, supply an explicit supported `--aspect-ratio` when the endpoint rejects the image's automatic dimensions; the CLI does not silently crop or choose one. See [Fal queue lifecycle](https://fal.ai/docs/documentation/model-apis/inference/queue), [Wan input schema](https://fal.ai/models/fal-ai/wan/v2.2-5b/image-to-video/api), and [AI SDK video polling](https://ai-sdk.dev/docs/ai-sdk-core/video-generation).
 
 ### text
 

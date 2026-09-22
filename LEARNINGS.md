@@ -129,3 +129,9 @@ On macOS through the same stored Cloudflare Google key, Gemini 3.8 returned 429 
 ## 2026-09-21: SDK package alignment
 
 AI SDK 7.0.105 uses provider 4.0.17 and provider-utils 5.0.43. Match adapter patch versions to those dependencies: provider-utils exports schema symbols whose identity matters to TypeScript. A bricks install retained duplicate physical copies of provider-utils 5.0.43; a clean install from the lockfile fixed declaration generation. Do not hide mismatches with type casts.
+
+## 2026-09-22: Video wait deadlines and durable operations
+
+Environment: macOS, AI SDK 7.0.105, Fal adapter 3.0.44 through Cloudflare BYOK. A Wan image-to-video job outlived ai-cli's 300-second deadline. Recovering its operation from Cloudflare logs showed 352.945 seconds of inference, followed by HTTP 422: automatic dimensions 1088x800 were unsupported; Fal required an explicit 16:9, 9:16 or 1:1 aspect ratio. The job was terminal and had no video to download. Gateway polls were uncached, so stale caching was not the cause.
+
+The SDK already polls, but `generateVideo` does not return its operation on timeout and has its own ten-minute polling cap. Decorate `doStart` to persist the operation before polling, and resume with that saved operation instead of submitting again. Give the CLI one overall deadline. Fal's publisher adapter now uses the official client's queue submit/status/result methods under the same SDK polling loop. Fal's `COMPLETED` means terminal, not successful; retrieve the result. The installed Fal adapter expects `error.message` and can lose actual `detail[]` fields, so the Cloudflare transport preserves those errors before the adapter discards them. See [Fal queue](https://fal.ai/docs/documentation/model-apis/inference/queue), [AI SDK video generation](https://ai-sdk.dev/docs/ai-sdk-core/video-generation), and [Wan schema](https://fal.ai/models/fal-ai/wan/v2.2-5b/image-to-video/api).

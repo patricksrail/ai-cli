@@ -1,6 +1,6 @@
 ---
 date_created: 2026-08-30
-date_updated: 2026-09-07
+date_updated: 2026-09-22
 summary: Verified Cloudflare BYOK account state, provider tests, costs, limitations, and maintenance notes for the ai-cli fork.
 related:
   - CLAUDE.md
@@ -140,3 +140,12 @@ During the first comparison, an incomplete PUT reset gateway authentication to f
 Merged through `6a0ed5d`: typed SDK evaluation, evaluation discovery, Quiver SVG output/previews, slow stdin and cancellation fixes. Jev remains Vercel-only and requires explicit gateway selection. Search defaults off; `--web-search` enables it and `gemini-2.5-flash-lite` is the saved search-test alias. Bricks shares compatible SDK versions and this search policy; its evaluation example is deferred by request. Google 3.8 search-free inference can still return transient 503 high-demand errors; existing fallback remains enabled.
 
 Validation: 392 CLI tests, 20 web tests, and 18 bricks tests passed; typechecks, format and CLI/web/bricks builds passed. Lint retains 25 pre-existing warnings and no errors. Built CLI reports 0.5.2. Live Google 3.8 text (search off), Google 2.5 Flash-Lite news/search in both projects, OpenRouter vision, Fal image/speech/transcription, Replicate image editing and 5-second video passed. Inspected generated image contents and video frame/codec/duration. Fal Wan 2.2 image-to-video hit the 300-second timeout; upstream completion is unknown and it was not resubmitted. Evaluation and SVG handling are covered by automated tests, not live provider calls. Scratch evidence: `.scratchpad/upstream-sync-2026-09-21/`.
+
+
+## Fal video recovery (2026-09-22)
+
+Recovered the original Wan operation `01a0c7cd-e23a-7953-afc7-3b24af895d72` from gateway log `01M33WVQXR217R47K7M460XRZG`. Fal reported 352.945 seconds of inference and a terminal HTTP 422: automatic output dimensions 1088x800 were unsupported; the endpoint required an explicit 16:9, 9:16 or 1:1 aspect ratio. The CLI's 300-second timeout hid the final error. No video exists for that failed job, and recovery did not submit a replacement. This resolves the previously unknown completion state.
+
+The CLI now persists SDK video operations, including Fal publisher jobs, and supports `ai video --resume <job-file>`. It keeps SDK polling/download behavior, removes the SDK's independent ten-minute polling cap, preserves Fal validation errors, and prevents route fallback after an accepted operation. State files live in `$XDG_STATE_HOME/ai-cli/video-jobs`, defaulting to `~/.local/state/ai-cli/video-jobs`, with private permissions. The original job was resumed with the rebuilt CLI and correctly reported HTTP 422. Validation: 398 CLI tests and 20 website tests passed; CLI/web builds and CLI typecheck passed; lint retains 25 existing warnings, no errors. Timeout/resume end-to-end coverage verifies one POST total across two CLI processes.
+
+Successful recovery was also verified without a new submission: resumed an older completed Fal Veo 3.1 operation `01a0bbff-3cee-7d10-ae1a-c5be755cb0b9`, downloaded its 5,725,814-byte MP4, and checked its frame plus 8-second duration, 1280x720 H.264 video and AAC audio. The original Wan job remains a confirmed terminal validation failure, not a successful video. The existing five-minute CLI default is unchanged pending Patrick’s choice; explicit longer waits now work without the separate SDK cap. No corrected paid job was submitted.

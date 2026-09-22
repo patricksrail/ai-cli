@@ -78,6 +78,14 @@ For MiniMax H3 Max through Fal, the CLI selects text-to-video or image-to-video 
 
 ### Options
 
+The CLI saves resumable SDK video operations (including Fal and H3 Max) under `$XDG_STATE_HOME/ai-cli/video-jobs`, defaulting to `~/.local/state/ai-cli/video-jobs`. It prints a recovery command after submission:
+
+```bash
+ai video --resume /path/to/job.json --timeout 1800 -o video.mp4
+```
+
+Resume checks/downloads the same operation without another submission or model fallback. Keep these private files until the output is saved; they omit prompts, images and auth headers. The provider can keep working after a timeout or Ctrl-C. Fal's final result can be an error even when its queue status says `COMPLETED`. See [Fal's queue lifecycle](https://fal.ai/docs/documentation/model-apis/inference/queue) and [AI SDK video polling](https://ai-sdk.dev/docs/ai-sdk-core/video-generation).
+
 <Properties>
   <Property name="-m, --model" type="string">
     Model ID. Comma-separated for multi-model.
@@ -100,6 +108,9 @@ For MiniMax H3 Max through Fal, the CLI selects text-to-video or image-to-video 
   <Property name="--resolution" type="WxH">
     Video resolution (e.g. `1920x1080` for 1080p). Supported resolutions vary
     by model.
+  </Property>
+  <Property name="--resume" type="job-file">
+    Resume a saved operation with its original gateway. Generation inputs cannot be changed.
   </Property>
   <Property name="--duration" type="seconds">
     Duration in seconds.

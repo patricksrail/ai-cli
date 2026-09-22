@@ -4,7 +4,11 @@ import { generationRetryOptions } from "../fork/generation.js";
 import { addRoutingOptions, type RoutingOptions } from "../fork/options.js";
 import type { Command } from "../lib/command.js";
 import { errorMessage } from "../lib/errors.js";
-import { videoDownload, videoModel } from "../lib/gateway.js";
+import {
+  resolveGatewayBackend,
+  videoDownload,
+  videoModel,
+} from "../lib/gateway.js";
 import {
   collectImageReference,
   loadImageReferences,
@@ -21,6 +25,11 @@ import {
 import { responseIdFromHeaders } from "../lib/response-id.js";
 import { readStdin } from "../lib/stdin.js";
 import { addTimeoutOption, timeoutMs } from "../lib/timeout.js";
+import {
+  readVideoJob,
+  recoverableVideoModel,
+  videoResumeCommand,
+} from "../lib/video-jobs.js";
 
 const DEFAULT_CONCURRENCY = 2;
 const DEFAULT_TIMEOUT_MS = 300_000;
@@ -38,6 +47,7 @@ interface VideoOptions extends RoutingOptions {
   concurrency?: string;
   preview?: boolean;
   timeout: number;
+  resume?: string;
 }
 
 export function registerVideoCommand(program: Command) {
@@ -50,6 +60,10 @@ export function registerVideoCommand(program: Command) {
       "Full route ID (fal/minimax/h3-max/text-to-video) or native ID with --provider; comma-separated"
     )
     .option("-o, --output <path>", "Output file path or directory")
+    .option(
+      "--resume <job-file>",
+      "Wait for an existing video job without submitting another"
+    )
     .option(
       "-i, --image <path-or-url>",
       "Image input path or URL",
@@ -77,9 +91,34 @@ export function registerVideoCommand(program: Command) {
   generation.action(
     async (rawPrompt: string | undefined, opts: VideoOptions) => {
       const prompt = rawPrompt?.trim() || undefined;
-      const stdin = await readStdin();
+      const resumed = opts.resume ? await readVideoJob(opts.resume) : undefined;
+      if (resumed) {
+        if (resumed.gateway !== resolveGatewayBackend())
+          throw new Error(
+            `This job uses ${resumed.gateway}; pass --gateway ${resumed.gateway}`
+          );
+        if (
+          prompt ||
+          opts.model ||
+          opts.image?.length ||
+          opts.count ||
+          opts.aspectRatio ||
+          opts.resolution ||
+          opts.duration ||
+          opts.best ||
+          opts.cheapest ||
+          opts.free ||
+          opts.provider ||
+          opts.fallbacks
+        )
+          throw new Error(
+            "--resume accepts output, timeout and display options; generation inputs cannot change an existing job"
+          );
+      }
+      // A resumed operation needs neither the original prompt nor image/stdin.
+      const stdin = resumed ? undefined : await readStdin();
       const imageReferenceInputs = opts.image ?? [];
-      if (!prompt && !stdin && imageReferenceInputs.length === 0) {
+      if (!resumed && !prompt && !stdin && imageReferenceInputs.length === 0) {
         process.stderr.write(
           "Error: prompt or image is required (provide a prompt, --image, or pipe an image via stdin)\n"
         );
@@ -113,7 +152,9 @@ export function registerVideoCommand(program: Command) {
           : { image: images[0]! };
       }
 
-      const models = await resolveCommandModels("video", opts.model);
+      const models = resumed
+        ? [resumed.model]
+        : await resolveCommandModels("video", opts.model);
       const countPerModel = opts.count
         ? parsePositiveInt(opts.count, "count")
         : 1;
@@ -125,27 +166,50 @@ export function registerVideoCommand(program: Command) {
         jobs,
         async (modelId) => {
           const abort = AbortSignal.timeout(timeoutMs(opts.timeout));
-          const result = await generateVideo({
-            ...generationRetryOptions(),
-            headers: {
-              "http-referer": "https://github.com/vercel-labs/ai-cli",
-              "x-title": "ai-cli",
-            },
-            model: videoModel(modelId),
-            prompt: videoPrompt,
-            abortSignal: abort,
-            download: videoDownload(modelId),
-            ...generationOptions,
-          });
-          return {
-            data: Buffer.from(result.video.uint8Array),
-            id: responseIdFromHeaders(result.responses[0]?.headers),
-          };
+          const recovery = await recoverableVideoModel(
+            videoModel(modelId),
+            modelId,
+            resolveGatewayBackend(),
+            {
+              resume: resumed
+                ? { path: opts.resume!, job: resumed }
+                : undefined,
+              onSaved: (path) => {
+                if (!opts.quiet)
+                  process.stderr.write(
+                    `Video job saved. Resume: ${videoResumeCommand(path, resolveGatewayBackend())}\n`
+                  );
+              },
+            }
+          );
+          try {
+            const result = await generateVideo({
+              ...generationRetryOptions(),
+              headers: {
+                "http-referer": "https://github.com/vercel-labs/ai-cli",
+                "x-title": "ai-cli",
+              },
+              model: recovery.model,
+              prompt: resumed ? "" : videoPrompt,
+              // --timeout is the single deadline; do not let the SDK silently
+              // impose its separate ten-minute polling limit.
+              poll: { timeoutMs: Infinity },
+              abortSignal: abort,
+              download: videoDownload(modelId),
+              ...generationOptions,
+            });
+            return {
+              data: Buffer.from(result.video.uint8Array),
+              id: responseIdFromHeaders(result.responses[0]?.headers),
+            };
+          } catch (error) {
+            throw recovery.explainFailure(abort.aborted ? abort.reason : error);
+          }
         },
         {
           noun: "video",
           modality: "video",
-          routing: opts,
+          routing: resumed ? { fallback: false } : opts,
           format: "video",
           outputPath: opts.output,
           quiet: opts.quiet,

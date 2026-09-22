@@ -34,6 +34,7 @@ import {
   type ProviderId,
 } from "../fork/providers.js";
 import { workersAIImage } from "../fork/workers-ai.js";
+import { errorMessage } from "./errors.js";
 
 type Environment = Record<string, string | undefined>;
 
@@ -238,7 +239,7 @@ export function videoModel(modelId: string): GatewayVideoModel {
 
 type FalQueueVideoModel = GatewayVideoModel;
 type FalQueueVideoOptions = Parameters<
-  NonNullable<FalQueueVideoModel["doGenerate"]>
+  NonNullable<FalQueueVideoModel["doStart"]>
 >[0];
 
 interface FalQueueVideoResult {
@@ -247,15 +248,21 @@ interface FalQueueVideoResult {
 }
 
 interface FalQueueVideoClient {
-  subscribe(
+  submit(
     endpointId: string,
     options: {
       input: Record<string, unknown>;
       abortSignal?: AbortSignal;
       headers?: Record<string, string>;
-      logs?: boolean;
-      mode?: "polling";
     }
+  ): Promise<{ request_id: string }>;
+  status(
+    endpointId: string,
+    options: { requestId: string; abortSignal?: AbortSignal }
+  ): Promise<{ status: string }>;
+  result(
+    endpointId: string,
+    options: { requestId: string; abortSignal?: AbortSignal }
   ): Promise<FalQueueVideoResult>;
 }
 
@@ -273,7 +280,9 @@ const createOfficialFalQueueVideoClient: FalQueueVideoClientFactory = (
 ) => {
   const client = createFalClient(settings);
   return {
-    subscribe: (endpointId, options) => client.subscribe(endpointId, options),
+    submit: (endpointId, options) => client.queue.submit(endpointId, options),
+    status: (endpointId, options) => client.queue.status(endpointId, options),
+    result: (endpointId, options) => client.queue.result(endpointId, options),
   };
 };
 
@@ -303,19 +312,52 @@ export function createCloudflareFalQueueVideoModel(
     provider: "fal.video",
     modelId,
     maxVideosPerCall: 1,
-    async doGenerate(options) {
+    async doStart(options) {
       const endpointId = resolveFalQueueVideoEndpoint(modelId, options.image);
       const input = falQueueVideoInput(endpointId, options);
-      const result = await client.subscribe(endpointId, {
+      const result = await client.submit(endpointId, {
         input,
         abortSignal: options.abortSignal,
         headers: definedHeaders(options.headers),
-        logs: false,
-        mode: "polling",
       });
+      // Split submit/status lets the CLI save the handle before waiting. The
+      // AI SDK owns polling; a client timeout must not cancel the Fal job.
+      // https://fal.ai/docs/documentation/model-apis/inference/queue
+      return {
+        operation: { endpointId, requestId: result.request_id },
+        warnings: [],
+        response: {
+          timestamp: new Date(),
+          modelId,
+          headers: { "x-request-id": result.request_id },
+        },
+      };
+    },
+    async doStatus(options) {
+      const operation = options.operation;
+      if (
+        !isRecord(operation) ||
+        typeof operation.endpointId !== "string" ||
+        typeof operation.requestId !== "string"
+      )
+        throw new Error("Invalid Fal video operation");
+      const { endpointId, requestId } = operation;
+      const queueOptions = { requestId, abortSignal: options.abortSignal };
+      const status = await client.status(endpointId, queueOptions);
+      if (status.status === "IN_QUEUE" || status.status === "IN_PROGRESS")
+        return {
+          status: "pending",
+          response: { timestamp: new Date(), modelId, headers: undefined },
+        };
+      if (status.status !== "COMPLETED")
+        throw new Error(`Unexpected Fal queue status: ${status.status}`);
+      // COMPLETED means terminal, including failed jobs. Always retrieve the
+      // result so Fal's actual validation/processing error reaches the caller.
+      const result = await client.result(endpointId, queueOptions);
       const response = falVideoResponse(result.data);
 
       return {
+        status: "completed",
         videos: [
           {
             type: "url" as const,
@@ -804,6 +846,28 @@ export function createCloudflareFalFetch(
     const response = request
       ? await byokFetch(new Request(baseURL, request), { headers })
       : await byokFetch(baseURL, { ...init, headers });
+    if (!response.ok && new URL(targetURL).pathname.includes("/requests/")) {
+      const body: unknown = await response
+        .clone()
+        .json()
+        .catch(() => undefined);
+      // This 400 is Fal's normal pending result response, not a failed job.
+      // Keep it intact for @ai-sdk/fal's doStatus pending-state handler.
+      // @ai-sdk/fal 3.0.44 expects error.message and drops detail[] when
+      // doStatus turns an APICallError into a terminal status. Preserve Fal's
+      // real validation fields before that lossy conversion.
+      if (
+        isRecord(body) &&
+        body.detail !== undefined &&
+        body.detail !== "Request is still in progress"
+      ) {
+        throw Object.assign(new Error(errorMessage(body)), {
+          statusCode: response.status,
+          requestSubmitted: true,
+          url: targetURL,
+        });
+      }
+    }
     if (
       (request?.method ?? init?.method ?? "GET").toUpperCase() === "POST" &&
       !new URL(targetURL).pathname.includes("/requests/")

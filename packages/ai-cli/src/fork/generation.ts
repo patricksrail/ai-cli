@@ -164,7 +164,16 @@ export async function generateWithGuidance<T>(
   } catch (error) {
     const providerError =
       error instanceof Error && error.cause ? error.cause : error;
-    const guidance = `\nCheck: ai doctor\nAlternatives: ai providers ${primaryRoute} --type ${modality}\nUse --fallbacks <routes> to set recovery order, or --no-fallback to pin one route.`;
+    // Accepted video jobs already include their exact resume command. Do not
+    // suggest a new route for a job that may still be running and billable.
+    const acceptedJob =
+      providerError &&
+      typeof providerError === "object" &&
+      "requestSubmitted" in providerError &&
+      providerError.requestSubmitted === true;
+    const guidance = acceptedJob
+      ? ""
+      : `\nCheck: ai doctor\nAlternatives: ai providers ${primaryRoute} --type ${modality}\nUse --fallbacks <routes> to set recovery order, or --no-fallback to pin one route.`;
     // Retain the cause so jobs.ts can include all failed attempts in JSON.
     throw new Error(
       `${errorMessage(error)}: ${errorMessage(providerError)}${guidance}`,

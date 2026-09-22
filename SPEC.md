@@ -1,6 +1,6 @@
 ---
 date_created: 2026-09-06
-date_updated: 2026-09-21
+date_updated: 2026-09-22
 summary: Required behavior of the Cloudflare BYOK CLI fork and provider-aware model discovery.
 related:
   - HANDOFF.md
@@ -38,3 +38,5 @@ Plain text defaults to Google 3.8 Flash, which has published free-tier eligibili
 Cheapest image selection uses the saved Fal Sana route, with explicit `--size 512x512` supported for drafts. Document published unit pricing without inventing sub-megapixel discounts. No verified free image offer must produce actionable guidance without paid inference. Existing Mac setup must run the installed command without per-command credential sourcing.
 
 Provider identity, modality support, auth type, and billing nuances have one executable registry at `src/fork/providers.ts`, exposed by `ai providers --all`; architectural guidance lives in `docs/providers.md`. Workers AI is disabled by choice in the registry after evaluating the $0.11-equivalent daily allowance. Its tested FLUX.1 Schnell adapter is retained as reference; do not enable it automatically. It must refuse prepaid billing and verify either a free plan or the user-authorized Workers AI gateway cap ($20 over at least 30 days) before ordinary inference. Explicit `--free` must reject capped paid routes. Do not change account plans or promote the route into default/best-free preferences until an authorized live probe succeeds.
+
+Asynchronous video operations must be persisted before polling so timeouts and interruptions can resume the same job without resubmission. Preserve provider terminal errors, including Fal validation details; a completed queue status alone is not success. The explicit CLI timeout must not be shortened by an independent SDK polling cap. Recovery files omit prompts, input images and auth headers and use private filesystem permissions.

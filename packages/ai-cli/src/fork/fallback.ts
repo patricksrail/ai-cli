@@ -119,6 +119,7 @@ function rejectedMediaSubmission(
   details: Record<string, unknown>,
   statusCode?: number
 ): boolean {
+  if (details.requestSubmitted === true) return false;
   if (![402, 429].includes(statusCode ?? 0) && details.code !== "TOP_UP")
     return false;
   if (details.requestSubmitted === false) return true;
