@@ -1,6 +1,8 @@
 /**
  * Provider search settings, verified 2026-09-21. Enable the provider's hosted
- * search; the model still decides when to use it. No MCP server is required.
+ * search only on explicit opt-in; the model still decides when to use it.
+ * Gemini 3.8 free API text excludes search (429 with search, 200 without).
+ * https://ai.google.dev/gemini-api/docs/pricing#gemini-3.8-flash
  * Keep capability decisions here so fallback attempts use their own provider.
  */
 import { google } from "@ai-sdk/google";
@@ -16,7 +18,7 @@ export interface SearchRoute {
 }
 
 /** Tools belong on generateText/streamText, not the SDK model constructor. */
-export function webSearchTools(provider: string, enabled = true): ToolSet {
+export function webSearchTools(provider: string, enabled = false): ToolSet {
   if (!enabled) return {};
   switch (provider) {
     // Current Gemini models use google_search, not google_search_retrieval.
@@ -44,7 +46,7 @@ export function webSearchTools(provider: string, enabled = true): ToolSet {
  */
 export function imageSearchOptions(
   route: SearchRoute,
-  enabled = true
+  enabled = false
 ): Record<string, Record<string, JSONValue>> {
   const { provider, modelId } = route;
   if (

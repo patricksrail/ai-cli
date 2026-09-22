@@ -8,7 +8,10 @@ import {
   resolveGatewayBackend,
   routeCloudflareModel,
 } from "../lib/gateway.js";
-import { resolveModels, type Modality } from "../lib/models.js";
+import {
+  resolveModels,
+  type GenerationModality as Modality,
+} from "../lib/models.js";
 import { findAlternatives } from "./alternatives.js";
 import {
   configuredProviders,

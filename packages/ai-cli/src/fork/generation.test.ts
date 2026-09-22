@@ -63,6 +63,7 @@ test("CLI recovers quota through the next saved host and reports actual route an
     "-m",
     "gemini-3.8-flash",
     "--json",
+    "--web-search",
     "Hello",
   ]);
   expect(result.code, result.stderr).toBe(0);
@@ -178,6 +179,7 @@ test("free-only recovery chooses the verified free router, never the saved paid 
     "-m",
     "gemini-3.8-flash",
     "--json",
+    "--web-search",
     "Hello",
   ]);
   expect(result.code, result.stderr).toBe(0);
@@ -200,6 +202,7 @@ test("Vercel generation retains SDK retries without switching to Cloudflare", as
     "-m",
     "openai/gpt-5.6-sol",
     "--json",
+    "--web-search",
     "Hello",
   ]);
   expect(result.code, result.stderr).toBe(0);

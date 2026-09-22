@@ -56,8 +56,10 @@ ai image "edit this" < photo.png
 </Properties>
 
 Generated image files preserve the format returned by the selected model when
-the model reports one (for example, JPEG or WebP). In supported terminals,
-non-PNG images are converted to PNG for the inline Kitty graphics preview.
+the model reports one (for example, JPEG, WebP, or SVG). Quiver Arrow models
+are saved as SVG through the upstream Vercel route (`--gateway vercel`). In supported terminals, non-PNG images are converted to PNG
+for the inline Kitty graphics preview. SVG previews use a 512-pixel long edge
+and an opaque white background.
 
 ---
 
@@ -267,6 +269,37 @@ cat recording.mp3 | ai audio transcribe
 
 ---
 
+## evaluate
+
+Ask named Boolean, Choice, and Score questions against shared stdin:
+
+```bash
+cat ticket.txt |
+  ai evaluate --gateway vercel \
+    --boolean "refund=Refund requested?" \
+    --choice "team=Which team?" \
+    --choices "team=billing,support" \
+    --score "tone=How positive?" \
+    --levels "tone=angry,neutral,happy"
+
+ai evaluate --gateway vercel --questions triage.json < ticket.json
+```
+
+Output is the SDK evaluation result as JSON, including named typed answers,
+probabilities, usage, provider metadata, and response information. Repeat question
+flags to ask more questions in one request.
+Text, JSON objects, and arrays remain one shared state.
+
+Use `--questions` for structured instructions and criteria, `--input auto|text|json`
+to control parsing, `--model` to choose one evaluation model, `--provider-options`
+for the SDK’s provider-specific settings, and `--max-retries` or `--timeout` for request controls.
+
+See [Evaluate](/docs/evaluate) for every flag, the question-file schema, probability
+semantics, and examples of using the answers in scripts. Valid evaluations exit
+zero even for false or uncertain answers; your code owns thresholds and routing.
+
+---
+
 ## models
 
 Show configured providers and defaults, or browse live catalogs with full model route IDs.
@@ -278,6 +311,7 @@ ai models --provider openrouter --search gemini
 ai models --type image --limit 50
 ai models --provider openrouter --all --json
 ai models openrouter/google/gemini-2.5-flash-lite
+ai models --gateway vercel --type evaluation
 ```
 
 <Properties>
@@ -293,7 +327,7 @@ ai models openrouter/google/gemini-2.5-flash-lite
   <Property name="--creator" type="string">
     Filter by model author, such as google within OpenRouter.
   </Property>
-  <Property name="--type" type="text | image | video | audio | speech | transcription">
+  <Property name="--type" type="text | image | video | audio | speech | transcription | evaluation">
     Filter by modality.
   </Property>
   <Property name="--search" type="string">
@@ -352,6 +386,7 @@ Requests that exceed the per-command timeout are aborted automatically:
 
 | Command | Timeout |
 | --- | --- |
+| `evaluate` | 30 seconds per evaluation request |
 | `text` | 120 seconds |
 | `image` | 300 seconds |
 | `video` | 300 seconds |
@@ -371,7 +406,7 @@ ai image --timeout 600 "a detailed sprite atlas"
 | Code | Meaning |
 | --- | --- |
 | `0` | Success |
-| `1` | All generations failed |
+| `1` | Invalid input or request failure; all generations failed |
 | `2` | Partial failure (some succeeded, some failed) |
 
 

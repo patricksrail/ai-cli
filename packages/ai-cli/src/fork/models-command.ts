@@ -1,7 +1,10 @@
 /** Model browsing: preferred choices are an offline local feed; full catalog
  * discovery remains provider-backed and does not verify inference credit. */
 import { routeCloudflareModel } from "../lib/gateway.js";
-import { resolveModels, type Modality } from "../lib/models.js";
+import {
+  resolveModels,
+  type GenerationModality as Modality,
+} from "../lib/models.js";
 import {
   configuredProviders,
   fetchCloudflareCatalog,
@@ -40,6 +43,10 @@ export async function showCloudflareModels(
   opts: CatalogOptions
 ): Promise<void> {
   const type = opts.type?.toLowerCase();
+  if (type === "evaluation")
+    throw new Error(
+      "Evaluation discovery requires --gateway vercel; no Cloudflare evaluation adapter is configured."
+    );
   if (opts.cheapest && (opts.best || opts.free))
     throw new Error("--cheapest cannot be combined with --best or --free");
   if (type && !TYPES.includes(type))

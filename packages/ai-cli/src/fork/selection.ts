@@ -1,5 +1,5 @@
 import { routeCloudflareModel } from "../lib/gateway.js";
-import type { Modality } from "../lib/models.js";
+import type { GenerationModality as Modality } from "../lib/models.js";
 import {
   fetchCloudflareCatalog,
   parseProvider,

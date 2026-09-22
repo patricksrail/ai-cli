@@ -432,6 +432,7 @@ export function asGatewayModels(entries: CatalogEntry[]): GatewayModels {
     video: forType("video"),
     speech: forType("speech"),
     transcription: forType("transcription"),
+    evaluation: [], // No evaluation adapter is configured for Cloudflare BYOK.
     all: entries.filter((e) => e.capabilities.length),
     lookup: entries,
     languageImageModelIds: new Set(

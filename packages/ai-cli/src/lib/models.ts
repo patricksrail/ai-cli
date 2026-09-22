@@ -2,7 +2,16 @@ import { asGatewayModels, fetchCloudflareCatalog } from "../fork/catalog.js";
 import { resolveDefaultModel } from "../fork/defaults.js";
 import { resolveModel, modelPreferences } from "../fork/model-preferences.js";
 import { resolveGatewayBackend } from "./gateway.js";
-export type Modality = "text" | "image" | "video" | "speech" | "transcription";
+export type Modality =
+  | "text"
+  | "image"
+  | "video"
+  | "speech"
+  | "transcription"
+  | "evaluation";
+
+/** Generation routes supported by this fork; evaluation is Vercel-only. */
+export type GenerationModality = Exclude<Modality, "evaluation">;
 
 const DEFAULTS: Record<Modality, string> = {
   text: process.env.AI_CLI_TEXT_MODEL ?? "openai/gpt-5.5",
@@ -10,6 +19,7 @@ const DEFAULTS: Record<Modality, string> = {
   video: process.env.AI_CLI_VIDEO_MODEL ?? "bytedance/seedance-2.0",
   speech: process.env.AI_CLI_SPEECH_MODEL ?? "openai/tts-1",
   transcription: process.env.AI_CLI_TRANSCRIPTION_MODEL ?? "openai/whisper-1",
+  evaluation: process.env.AI_CLI_EVALUATION_MODEL ?? "typesafe-ai/jev",
 };
 
 const GATEWAY_MODELS_URL = "https://ai-gateway.vercel.sh/v1/models";
@@ -67,7 +77,8 @@ export interface GatewayModels {
   video: ModelEntry[];
   speech: ModelEntry[];
   transcription: ModelEntry[];
-  /** Models with a modality the CLI can generate with. */
+  evaluation: ModelEntry[];
+  /** Models with a modality supported by the CLI. */
   all: ModelEntry[];
   /** Every gateway model, including types the CLI cannot generate with
    * (embedding, realtime, reranking, ...). */
@@ -120,6 +131,7 @@ async function doFetch(): Promise<GatewayModels> {
     video: [],
     speech: [],
     transcription: [],
+    evaluation: [],
     all: [],
     lookup: [],
     languageImageModelIds: new Set(),
@@ -157,6 +169,9 @@ async function doFetch(): Promise<GatewayModels> {
         case "transcription":
           capabilities.push("transcription");
           break;
+        case "evaluation":
+          capabilities.push("evaluation");
+          break;
         default:
           break;
       }
@@ -188,6 +203,7 @@ async function doFetch(): Promise<GatewayModels> {
       if (capabilities.includes("speech")) result.speech.push(entry);
       if (capabilities.includes("transcription"))
         result.transcription.push(entry);
+      if (capabilities.includes("evaluation")) result.evaluation.push(entry);
 
       if (m.type === "language" && isImageGen) {
         result.languageImageModelIds.add(m.id);
@@ -262,7 +278,11 @@ export async function resolveCommandModels(
   modality: Modality,
   userModel?: string
 ): Promise<string[]> {
-  if (resolveGatewayBackend() === "cloudflare" && userModel) {
+  if (
+    resolveGatewayBackend() === "cloudflare" &&
+    modality !== "evaluation" &&
+    userModel
+  ) {
     const prefs = modelPreferences();
     userModel = userModel
       .split(",")

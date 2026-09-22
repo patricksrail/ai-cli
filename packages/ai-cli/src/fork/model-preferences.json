@@ -1,5 +1,5 @@
 {
-  "dateUpdated": "2026-09-07",
+  "dateUpdated": "2026-09-21",
   "defaults": {
     "text": "google/gemini-3.8-flash",
     "image": "fal/fal-ai/flux/schnell",
@@ -25,7 +25,8 @@
     "cheapest": "Saved inexpensive frontier preference, not a claim of the absolute lowest catalog price. Patrick suggested GPT-5.6 Luna for text.",
     "routing": "Gateway defaults to Cloudflare separately from these provider/model IDs. Prefer OpenRouter where practical; direct Google is the free-text exception. Fal is the usual media host; the existing Replicate video default is retained until a replacement is selected.",
     "cheapestImage": "Sana through Fal: $0.001 per megapixel listed 2026-09-06. Supports --size 512x512 for drafts; do not assume proportional sub-megapixel discounts or a verified invoice cost. This is the selected low-cost option, not an exhaustive global minimum.",
-    "fallbacks": "Ordered recovery routes after eligible failures; no implicit gateway bypass. Free-only callers must filter candidates against current free metadata. Media only retries a confirmed rejected submission, never an uncertain or running job."
+    "fallbacks": "Ordered recovery routes after eligible failures; no implicit gateway bypass. Free-only callers must filter candidates against current free metadata. Media only retries a confirmed rejected submission, never an uncertain or running job.",
+    "searchTest": "Gemini 2.5 Flash-Lite is the explicit search test model; opt in per request. Search is off by default, including for this alias. Google publishes up to 500 grounded requests/day shared with 2.5 Flash; project model limits also apply."
   },
   "sources": {
     "googleFree": "https://ai.google.dev/gemini-api/docs/pricing",
@@ -46,6 +47,16 @@
       "providers": {
         "google": "gemini-3.8-flash",
         "openrouter": "google/gemini-3.8-flash"
+      }
+    },
+    {
+      "alias": "gemini-2.5-flash-lite",
+      "label": "Gemini 2.5 Flash-Lite (search test)",
+      "route": "google/gemini-2.5-flash-lite",
+      "modalities": ["text"],
+      "providers": {
+        "google": "gemini-2.5-flash-lite",
+        "openrouter": "google/gemini-2.5-flash-lite"
       }
     },
     {

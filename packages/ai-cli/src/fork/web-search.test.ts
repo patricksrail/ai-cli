@@ -6,7 +6,11 @@ import { join } from "node:path";
 
 import { imageSearchOptions } from "./web-search.js";
 
-async function request(modality: string, route: string, disabled = false) {
+async function request(
+  modality: string,
+  route: string,
+  enabled: boolean | undefined = undefined
+) {
   const dir = mkdtempSync(join(tmpdir(), "ai-search-"));
   try {
     const capture = join(dir, "requests.jsonl");
@@ -21,7 +25,9 @@ async function request(modality: string, route: string, disabled = false) {
         route,
         "--no-fallback",
         "--json",
-        ...(disabled ? ["--no-web-search"] : []),
+        ...(enabled === undefined
+          ? []
+          : [enabled ? "--web-search" : "--no-web-search"]),
         "Search today's news",
       ],
       {
@@ -59,10 +65,11 @@ for (const [route, expected] of [
   ["openai/gpt-5.6-sol", [{ type: "web_search" }]],
   ["openrouter/openai/gpt-5.6-sol", [{ type: "openrouter:web_search" }]],
 ] as const) {
-  test(`CLI enables native search and honors opt-out: ${route}`, async () => {
-    const enabled = await request("text", route);
+  test(`CLI leaves search off unless opted in: ${route}`, async () => {
+    const enabled = await request("text", route, true);
+    expect((await request("text", route)).body.tools ?? []).toEqual([]);
     expect(enabled.body.tools).toMatchObject(expected);
-    const disabled = await request("text", route, true);
+    const disabled = await request("text", route, false);
     expect(disabled.body.tools ?? []).toEqual([]);
   });
 }
@@ -72,9 +79,9 @@ for (const [route, field] of [
   ["replicate/google/nano-banana-2", "google_search"],
 ] as const) {
   test(`CLI media search default and opt-out reach provider: ${route}`, async () => {
-    for (const disabled of [false, true]) {
-      const { body } = await request("image", route, disabled);
-      expect((body.input ?? body)[field]).toBe(!disabled);
+    for (const enabled of [undefined, false, true]) {
+      const { body } = await request("image", route, enabled);
+      expect((body.input ?? body)[field]).toBe(enabled === true);
     }
   });
 }
@@ -91,13 +98,14 @@ test("unrelated media models receive no search flag", () => {
 test("Google image adapter receives grounding only when enabled", async () => {
   const enabled = await request(
     "image",
-    "google/gemini-3.1-flash-image-preview"
+    "google/gemini-3.1-flash-image-preview",
+    true
   );
   expect(enabled.body.tools).toEqual([{ googleSearch: {} }]);
   const disabled = await request(
     "image",
     "google/gemini-3.1-flash-image-preview",
-    true
+    false
   );
   expect(disabled.body.tools ?? []).toEqual([]);
 });

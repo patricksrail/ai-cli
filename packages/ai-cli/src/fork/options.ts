@@ -2,7 +2,7 @@
  * parsed options object and are passed by each command to runJobs. */
 import type { Command } from "../lib/command.js";
 import { resolveGatewayBackend } from "../lib/gateway.js";
-import type { Modality } from "../lib/models.js";
+import type { GenerationModality as Modality } from "../lib/models.js";
 import { parseProvider } from "./catalog.js";
 import type { GenerationPolicy } from "./generation.js";
 import { resolveModel, modelPreferences } from "./model-preferences.js";
@@ -99,10 +99,12 @@ export function addRoutingOptions(
       "Attempt only the selected model; disable saved fallback routes"
     );
   if (modality === "text" || modality === "image") {
-    command.option(
-      "--no-web-search",
-      "Disable provider web search (enabled by default where supported)"
-    );
+    command
+      .option(
+        "--web-search",
+        "Enable provider web search; separate fees/quota may apply"
+      )
+      .option("--no-web-search", "Disable provider web search (the default)");
   }
   return {
     action<TArgument, TOptions>(
@@ -164,7 +166,7 @@ export function addRoutingOptions(
             }
             // --free promises free generation; hosted search can be billed
             // separately even on a zero-token-price model (notably OpenRouter).
-            if (options.free && options.webSearch !== false) {
+            if (options.free && options.webSearch === true) {
               options.webSearch = false;
               if (!options.quiet)
                 process.stderr.write(

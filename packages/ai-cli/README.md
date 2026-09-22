@@ -99,6 +99,7 @@ ai audio transcribe recording.mp3
 ai models                          # configured providers and defaults
 ai models --free                   # OpenRouter free + Google free-tier models
 ai models --provider openrouter --search gemini
+ai evaluate --gateway vercel --boolean "refund=Refund requested?" < ticket.txt
 ```
 
 ### Piping and References
@@ -118,7 +119,7 @@ cat recording.mp3 | ai audio transcribe
 
 ### Common Options
 
-All commands support:
+Generation commands support:
 
 ```
 -m, --model <id>         Full route ID; native provider ID when --provider is set
@@ -146,6 +147,131 @@ On the default Cloudflare backend, `openai/...`, `google/...`, `openrouter/...`,
 
 Model IDs must contain printable ASCII characters without spaces. This applies to both `--model` values and the `AI_CLI_*_MODEL` environment variables.
 
+### evaluate
+
+Evaluation requires `--gateway vercel` (or `AI_CLI_GATEWAY=vercel`) and `AI_GATEWAY_API_KEY`; Jev has no configured Cloudflare BYOK adapter.
+
+Evaluate named Boolean, Choice, and Score questions using AI SDK evaluation models:
+
+```bash
+cat ticket.txt |
+  ai evaluate --gateway vercel \
+    --boolean "refund=Refund requested?" \
+    --choice "team=Which team?" \
+    --choices "team=billing,support" \
+    --score "tone=How positive?" \
+    --levels "tone=angry,neutral,happy"
+```
+
+All questions share one unchanged input. Text keeps its line breaks; JSON objects
+and arrays keep their shape. Each question has an explicit type and a unique ID.
+Choices and levels bind to that ID regardless of flag order. Repeat the flags to
+ask more questions in the same request.
+
+- Boolean returns `probability`: P(true) from 0 to 1, including strong no answers near zero.
+- Choice returns one supplied option and its distribution when available.
+- Score returns a fractional position on ordered levels, starting at zero, and
+  a distribution when available. Jev uses the probability-weighted mean.
+
+The command calls AI SDK's `experimental_evaluate`: stdin maps to `state`,
+and typed flags build its named `questions`. `--choices` creates a Choice
+`criteria` map; `--levels` creates a Score `criteria` array. The file form uses
+the SDK question schema directly. Jev is the default evaluation model; other
+supported evaluation models use the same interface.
+
+For richer criteria, save a named question map to `triage.json`:
+
+```json
+{
+  "refund": {
+    "type": "boolean",
+    "instructions": "Is the customer requesting money back?"
+  },
+  "team": {
+    "type": "choice",
+    "instructions": "Which team should handle this request?",
+    "criteria": {
+      "billing": "Payments, charges, and refunds",
+      "support": "Other requests"
+    }
+  },
+  "impact": {
+    "type": "score",
+    "instructions": "How much is the customer prevented from using the product?",
+    "criteria": ["Cosmetic issue", "A workaround exists", "Unusable; no workaround"]
+  }
+}
+```
+
+```bash
+ai evaluate --gateway vercel --questions triage.json < ticket.json
+ai evaluate --gateway vercel --boolean "refund=Refund requested?" < ticket.txt |
+  jq -e '.answers.refund.probability >= 0.9'
+```
+
+Question files support string, JSON object, or array instructions and descriptions;
+descriptions may also be `null`. Boolean criteria optionally describe `true` and
+`false`; Choice criteria are an option map; Score criteria are ordered levels.
+There is no implicit rubric. Model-specific limits are enforced by the SDK and provider.
+Inline comma-separated choices use each label as its name and description.
+Use a file for labels containing commas or separate names and descriptions.
+Files and inline questions can be combined; duplicate IDs are errors.
+
+```text
+--boolean <id=question>    P(true) question (repeatable)
+--choice <id=question>     Categorical question (repeatable)
+--choices <id=a,b,...>     Choices for the named question (repeatable)
+--score <id=question>      Ordered-score question (repeatable)
+--levels <id=low,...,high> Score levels for the named question (repeatable)
+--questions <path>        JSON file of named typed questions
+-m, --model <id>          One evaluation model (default: typesafe-ai/jev)
+--input <format>          auto, text, or json (default: auto)
+--provider-options <path> JSON object of provider names to option objects
+--max-retries <n>         Transient-error retries, including 0 (default: 2)
+--timeout <seconds>       Evaluation deadline including retries (default: 30)
+```
+
+Output is always JSON on stdout; no `--json` flag is needed and no files are
+created. Output is the JSON-serialized SDK result: `answers`, `usage`, `warnings`,
+`response`, and optional `rounding` and `providerMetadata`. Fields and values
+are preserved; score indices refer to your supplied criteria.
+Native confidence is distinct from option probability and stays in provider
+metadata. Missing distributions or confidence are not synthesized.
+Usage has `inputTokens`, `outputTokens`, and `totalTokens`; unknown values
+are omitted, and known zeros remain zero. `response` retains model information,
+provider headers and body when available, and an ISO timestamp. Use shell `time`
+for elapsed command time.
+
+Stdin is buffered through EOF. Auto mode tries one complete JSON value, then
+text. Malformed JSON-looking input fails; use `--input text` for literal logs.
+JSON state must be a string, object, or array. Empty stdin and binary input fail;
+explicit empty JSON objects, arrays, and strings are valid. To read JSONL as a
+shared array, use `jq -s . tickets.jsonl | ai evaluate --gateway vercel --questions triage.json`.
+Provider context limits apply; input and questions are never silently split or truncated.
+
+Valid evaluations exit `0`, including false and uncertain answers. Input errors,
+provider failures, timeouts, and invalid answers exit `1` with no partial JSON.
+Apply thresholds, sorting, and routing in your code; `jq -e` above owns its exit status.
+
+Ask small, focused questions with complete instructions and meaningful criteria.
+Question IDs are for your code and are not instructions to Jev. Questions in one
+call are independent; use follow-up calls for dependencies. Use `ai text` when
+you need prose, explanations, or code. Typed output does not guarantee correct judgments.
+
+Supply the context each question needs, including a reference date for questions
+about "today"; the CLI does not add the current date. Keep exact arithmetic,
+counting, age cutoffs, and date comparisons in code. TypeSafe documents
+[numeric and date limitations in Jev 1.13](https://docs.typesafe.ai/model-jaggedness/jev-1.13).
+Adding context can clarify a question without making the model a reliable calculator.
+Validate questions and probability thresholds against positive and negative examples,
+including quotations and negations. A high probability can still be a wrong judgment.
+
+Requires `AI_GATEWAY_API_KEY` with access to the evaluation provider. Override
+the default with `AI_CLI_EVALUATION_MODEL` or `-m`; `-m jev` resolves to
+`typesafe-ai/jev`. Discover models with `ai models --type evaluation`.
+
+See [Evaluate](https://ai-cli.dev/docs/evaluate) for the complete interface.
+
 ### image
 
 ```
@@ -166,6 +292,8 @@ cat input.png | ai image -i style.png "combine the subject with this style"
 Reference-image support is model-dependent; unsupported models may reject image inputs.
 
 Gemini image models (e.g. `google/gemini-2.5-flash-image`) don't support `--size`; use `--aspect-ratio` instead.
+
+Quiver Arrow image models generate SVG through the upstream Vercel route (`--gateway vercel`). Their output is saved as an `.svg` file; inline terminal previews are rasterized with a 512-pixel long edge on a white background.
 
 ### video
 
@@ -274,7 +402,7 @@ ai models --gateway vercel                           # explicit upstream discove
 | `[model]` | Full route ID or unambiguous short name; show details |
 | `--provider <name>` | Host: `openrouter`, `google`, `openai`, `fal`, `replicate` |
 | `--creator <name>` | Model author, such as `google` within OpenRouter |
-| `--type <type>` | `text`, `image`, `video`, `audio`, `speech`, `transcription` |
+| `--type <type>` | `text`, `image`, `video`, `audio`, `speech`, `transcription`, `evaluation` (Vercel only) |
 | `--search <text>` | Search IDs, names, and descriptions |
 | `--free` | OpenRouter zero-price models and Google free-tier eligible models |
 | `--best` | Saved best choices; combine with `--free` for best-free choices |
@@ -320,10 +448,11 @@ ai image "a sunset" -n 2 -m "openai/gpt-image-1,bfl/flux-2-pro"   # 4 images tot
 
 ### Inline Preview
 
-When running in a terminal that supports the [Kitty graphics protocol](https://sw.kovidgoyal.net/kitty/graphics-protocol/) (Kitty, Ghostty, WezTerm, Warp, iTerm2), generated images and videos are displayed inline automatically. Image formats returned by models are preserved on disk and converted to PNG for terminal previews when needed. Video previews decode an H.264 keyframe from the midpoint of the video using [openh264](https://github.com/cisco/openh264) compiled to WebAssembly — no native dependencies required. `audio speak` can also play generated speech and render a terminal waveform after saving. Use `--no-preview` for image/video previews, `--no-play` or `--no-waveform` for audio previews, or set `AI_CLI_PREVIEW=1` to force visual previews on in undetected terminals.
+When running in a terminal that supports the [Kitty graphics protocol](https://sw.kovidgoyal.net/kitty/graphics-protocol/) (Kitty, Ghostty, WezTerm, Warp, iTerm2), generated images and videos are displayed inline automatically. Image formats returned by models are preserved on disk and converted to PNG for terminal previews when needed. SVG previews use a 512-pixel long edge and an opaque white background. Video previews decode an H.264 keyframe from the midpoint of the video using [openh264](https://github.com/cisco/openh264) compiled to WebAssembly — no native dependencies required. `audio speak` can also play generated speech and render a terminal waveform after saving. Use `--no-preview` for image/video previews, `--no-play` or `--no-waveform` for audio previews, or set `AI_CLI_PREVIEW=1` to force visual previews on in undetected terminals.
 
 ### Output Behavior
 
+- **evaluate**: the SDK evaluation result as JSON on stdout, including typed answers, usage, provider metadata, and response information
 - **text**: saves to `<id>.md` (interactive), stdout when piped
 - **image/video**: saves to `<id>.<format>` / `<id>.mp4` (interactive), preserving the image format returned by the model, raw binary stdout when piped
 - **audio speak**: saves to `<id>.mp3` (interactive), raw binary stdout when piped
@@ -353,6 +482,7 @@ When the CLI needs to choose a filename, it uses a response id when available an
 | `AI_CLI_PREVIEW`              | Set to `1` to force inline image preview, `0` to disable                                         |
 | `NO_COLOR`                    | Disable ANSI color output                                                                        |
 | `FORCE_COLOR`                 | Force color output even when not a TTY                                                           |
+| `AI_CLI_EVALUATION_MODEL` | Evaluation model (default: `typesafe-ai/jev`; Vercel only) |
 
 The `-m` flag always takes priority over `AI_CLI_*_MODEL` env vars. The `-o` flag always takes priority over `AI_CLI_OUTPUT_DIR`.
 
@@ -362,23 +492,24 @@ The default Cloudflare backend intentionally ignores local provider credentials.
 
 Requests that exceed the timeout are aborted automatically:
 
-| Command            | Timeout     |
-| ------------------ | ----------- |
-| `text`             | 120 seconds |
-| `image`            | 300 seconds |
-| `video`            | 300 seconds |
-| `audio speak`      | 120 seconds |
+| Command | Timeout |
+|---|---|
+| `evaluate` | 30 seconds per evaluation request |
+| `text` | 120 seconds |
+| `image` | 300 seconds |
+| `video` | 300 seconds |
+| `audio speak` | 120 seconds |
 | `audio transcribe` | 120 seconds |
 
-Use `--timeout <seconds>` to override the default for `text`, `image`, `video`, `audio speak`, or `audio transcribe`. The value must be a positive integer. For example, `ai image --timeout 600 "a detailed sprite atlas"` allows the request to run for up to 10 minutes.
+Use `--timeout <seconds>` to override the default for `text`, `image`, `video`, `audio speak`, `audio transcribe`, or `evaluate`. The value must be a positive integer. For example, `ai image --timeout 600 "a detailed sprite atlas"` allows the request to run for up to 10 minutes.
 
 ### Exit Codes
 
-| Code | Meaning                                       |
-| ---- | --------------------------------------------- |
-| `0`  | Success                                       |
-| `1`  | All generations failed                        |
-| `2`  | Partial failure (some succeeded, some failed) |
+| Code | Meaning |
+|---|---|
+| `0` | Success |
+| `1` | Invalid input or request failure; all generations failed |
+| `2` | Partial generation failure (some succeeded, some failed) |
 
 ## License
 
@@ -479,10 +610,10 @@ Progress and failures go to stderr. JSON reports `requested_model`, the successf
 
 ## Web search defaults
 
-Text generation enables the billing provider's hosted search by default: Google Search grounding, OpenAI Responses `web_search`, or OpenRouter's `openrouter:web_search` server tool. The model decides whether to search. No MCP server or local search key is needed. Search may add provider charges, even when model tokens are free. `--free` disables search with a notice; `--no-web-search` explicitly disables it on text and image calls.
+Text generation leaves hosted search off by default. Opt in with `--web-search`: Google Search grounding, OpenAI Responses `web_search`, or OpenRouter's `openrouter:web_search` server tool. The model decides whether to search. No MCP server or local search key is needed. Search may add provider charges, even when model tokens are free. `--free` disables an explicit search request with a notice; `--no-web-search` also disables it on text and image calls.
 
 ```sh
-ai text -m openai/gpt-5.6-sol "Search today's news and cite sources"
+ai text -m openai/gpt-5.6-sol --web-search "Search today's news and cite sources"
 ai text -m openrouter/openai/gpt-5.6-sol --no-web-search "Rewrite this paragraph"
 ai image -m fal/fal-ai/nano-banana-2 --no-web-search "A blue sailboat"
 ```
@@ -492,3 +623,11 @@ The settings and authoritative source links live in [`src/fork/web-search.ts`](s
 Image search is model-specific. Verified schemas expose `enable_web_search` for Fal Nano Banana 2/Pro (including their edit endpoints), `google_search` for Replicate Nano Banana 2, and `googleSearch` for Google's Gemini 3/3.1 image adapter. Unlisted image models receive no search options; speech, transcription and video have no blanket search setting. Vercel routes retain their creator IDs; unknown Vercel creators do not inherit OpenRouter tools.
 
 **Live checks, 2026-09-21:** Google Gemini 2.5 Flash Lite, OpenAI GPT-5.6 Sol and OpenRouter GPT-5.6 Sol answered the independently checked news question with citations in both ai-cli and bricks. The saved Google 3.8 Flash route returned quota errors; its preference is unchanged. Nano Banana 2 image-news checks failed on Fal and Replicate, while sailboat controls succeeded with search both on and off. Media search is configured from documented fields but is **not verified working**. See [the test report](../../research/web-search-validation-2026-09-21.md) before relying on it.
+
+### Google search test
+
+Search is off by default for both text and images. Gemini 3.8 free API text does not include Google Search: a paired test returned 429 with search and 200 without it. Gemini 2.5 Flash/Lite have up to 500 free grounded requests/day shared between them, subject to project model limits. The `gemini-2.5-flash-lite` alias is a test choice, not a replacement default. [Google pricing](https://ai.google.dev/gemini-api/docs/pricing).
+
+```bash
+ai text -m gemini-2.5-flash-lite --web-search --no-fallback "Search today’s news and cite sources"
+```

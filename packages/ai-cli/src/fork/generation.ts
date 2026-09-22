@@ -7,7 +7,7 @@
  */
 import { errorMessage } from "../lib/errors.js";
 import { resolveGatewayBackend, routeCloudflareModel } from "../lib/gateway.js";
-import type { Modality } from "../lib/models.js";
+import type { GenerationModality as Modality } from "../lib/models.js";
 import { fetchCloudflareCatalog } from "./catalog.js";
 import { runWithFallback, type GenerationResult } from "./fallback.js";
 import { googleFreeTier } from "./google-pricing.js";

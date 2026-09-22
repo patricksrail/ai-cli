@@ -8,7 +8,7 @@
  */
 import { readFileSync } from "node:fs";
 
-import type { Modality } from "../lib/models.js";
+import type { GenerationModality as Modality } from "../lib/models.js";
 import bundledPreferences from "./model-preferences.json";
 import { PROVIDERS, type ProviderId } from "./providers.js";
 

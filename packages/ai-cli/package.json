@@ -1,7 +1,7 @@
 {
   "name": "ai-cli",
-  "version": "0.4.4",
-  "description": "A tiny, agent-native CLI for generating images, video, audio and text with dead-simple commands, stdin support and predictable artifact outputs",
+  "version": "0.5.2",
+  "description": "The AI SDK for your terminal: generate text and media, and evaluate typed questions",
   "type": "module",
   "license": "Apache-2.0",
   "repository": {
@@ -43,15 +43,16 @@
     "prepack": "bun run typecheck && bun run build"
   },
   "dependencies": {
-    "@ai-sdk/fal": "3.0.34",
-    "@ai-sdk/google": "4.0.57",
-    "@ai-sdk/openai": "4.0.51",
-    "@ai-sdk/provider-utils": "5.0.33",
-    "@ai-sdk/replicate": "3.0.34",
+    "@ai-sdk/fal": "3.0.44",
+    "@ai-sdk/google": "4.0.74",
+    "@ai-sdk/openai": "4.0.69",
+    "@ai-sdk/provider-utils": "5.0.43",
+    "@ai-sdk/replicate": "3.0.44",
     "@fal-ai/client": "1.10.1",
-    "@openrouter/ai-sdk-provider": "3.0.0",
-    "ai": "7.0.84",
+    "@openrouter/ai-sdk-provider": "3.1.0",
+    "ai": "7.0.105",
     "undici": "7.29.0",
+    "@ai-sdk/gateway": "4.0.85",
     "sharp": "0.35.4"
   },
   "devDependencies": {

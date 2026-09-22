@@ -166,7 +166,7 @@ export function registerModelsCommand(program: Command) {
     )
     .option(
       "--type <type>",
-      "Filter by type: text, image, video, audio, speech, transcription"
+      "Filter by type: text, image, video, audio, speech, transcription, evaluation"
     )
     .option("--creator <name>", "Filter by creator (e.g. openai, google)")
     .option(
@@ -233,6 +233,7 @@ export function registerModelsCommand(program: Command) {
           "audio",
           "speech",
           "transcription",
+          "evaluation",
         ];
         const filterType = opts.type?.toLowerCase() as ModelFilter | undefined;
         if (filterType && !validTypes.includes(filterType)) {
@@ -279,6 +280,11 @@ export function registerModelsCommand(program: Command) {
           sections.push({ title: "Image", entries: gatewayModels.image });
         if (!filterType || filterType === "video")
           sections.push({ title: "Video", entries: gatewayModels.video });
+        if (!filterType || filterType === "evaluation")
+          sections.push({
+            title: "Evaluation",
+            entries: gatewayModels.evaluation,
+          });
         if (!filterType || filterType === "audio" || filterType === "speech")
           sections.push({ title: "Speech", entries: gatewayModels.speech });
         if (

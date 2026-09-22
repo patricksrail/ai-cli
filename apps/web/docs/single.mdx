@@ -56,9 +56,24 @@ echo "Ship the changelog" | ai audio speak -o changelog.mp3
 cat recording.mp3 | ai audio transcribe -o transcript.txt
 ```
 
+### Evaluate
+
+`evaluate` reads finite input through EOF and evaluates named typed questions together.
+Text keeps whitespace; JSON objects and arrays remain one shared state. It always
+prints JSON answers and metadata in terminals and pipes, without writing files.
+
+```bash
+ai evaluate --gateway vercel --boolean "refund=Refund requested?" < ticket.txt |
+  jq '.answers.refund.probability'
+ai evaluate --gateway vercel --questions triage.json < ticket.json
+```
+
+Use `--input text` for literal JSON-looking text, or `--input json` to require JSON.
+See [Evaluate](/docs/evaluate) for question types, probability semantics, and format flags.
+
 ## Stdout
 
-Output behavior changes based on whether stdout is a TTY (interactive terminal) or a pipe:
+For generation commands, output behavior changes based on whether stdout is a TTY (interactive terminal) or a pipe:
 
 ### Interactive (TTY)
 
@@ -94,7 +109,7 @@ ai audio transcribe call.mp3 -o call.txt   # transcript file
 
 When `-o` points to a directory, files use response IDs when available and random 8-character names otherwise.
 
-The `AI_CLI_OUTPUT_DIR` environment variable sets a default output directory:
+The `AI_CLI_OUTPUT_DIR` environment variable sets a default directory for generated artifacts. `evaluate` always uses stdout and does not use this setting:
 
 ```bash
 export AI_CLI_OUTPUT_DIR=~/ai-output
@@ -103,7 +118,7 @@ ai image "a sunset"    # → saves to ~/ai-output/<id>.<format>
 
 ## JSON metadata
 
-Use `--json` to get structured metadata on stdout instead of raw output:
+Generation commands use `--json` to get structured metadata on stdout instead of raw output:
 
 ```bash
 ai image "a sunset" --json
@@ -132,6 +147,14 @@ ai image "a sunset" --json
 
 ## Web search
 
-Text calls enable hosted search by default through Google, OpenAI Responses or OpenRouter. The model chooses when to search; source links appear in text and in the `sources` field of JSON results. Pass `--no-web-search` to disable it. `--free` disables search because provider tool fees can be separate from token prices.
+Text calls leave hosted search off by default. Use `--web-search` to enable it through Google, OpenAI Responses or OpenRouter. The model chooses when to search; source links appear in text and in the `sources` field of JSON results. Pass `--no-web-search` to disable it. `--free` disables search because provider tool fees can be separate from token prices.
 
-Image search is enabled only for documented compatible models: Fal Nano Banana 2/Pro, Replicate Nano Banana 2, and Google's Gemini 3/3.1 image models. Other image models, video and audio do not receive search settings. September 21 live text checks passed, but Nano Banana 2 image-news checks failed on both Fal and Replicate; ordinary sailboat controls succeeded with search both on and off. Model support and successful news grounding are separate.
+Image search can be explicitly enabled with `--web-search` only for documented compatible models: Fal Nano Banana 2/Pro, Replicate Nano Banana 2, and Google's Gemini 3/3.1 image models. Other image models, video and audio do not receive search settings. September 21 live text checks passed, but Nano Banana 2 image-news checks failed on both Fal and Replicate; ordinary sailboat controls succeeded with search both on and off. Model support and successful news grounding are separate.
+
+### Google search test
+
+Search is off by default for both text and images. Gemini 3.8 free API text does not include Google Search: a paired test returned 429 with search and 200 without it. Gemini 2.5 Flash/Lite have up to 500 free grounded requests/day shared between them, subject to project model limits. The `gemini-2.5-flash-lite` alias is a test choice, not a replacement default. [Google pricing](https://ai.google.dev/gemini-api/docs/pricing).
+
+```bash
+ai text -m gemini-2.5-flash-lite --web-search --no-fallback "Search today’s news and cite sources"
+```

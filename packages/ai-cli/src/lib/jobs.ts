@@ -14,7 +14,7 @@ import {
   displayImage,
   displayVideoFrame,
 } from "./kitty.js";
-import type { Modality } from "./models.js";
+import type { GenerationModality as Modality } from "./models.js";
 import type { OutputFormat } from "./output.js";
 import { writeOutput } from "./output.js";
 import { pMap } from "./p-map.js";
@@ -255,8 +255,12 @@ export async function runJobs(
           quiet: true,
           display: false,
         });
-        if (shouldDisplay && Buffer.isBuffer(generated.data)) {
-          pendingDisplayBuffers.push(generated.data);
+        if (shouldDisplay) {
+          pendingDisplayBuffers.push(
+            typeof generated.data === "string"
+              ? Buffer.from(generated.data)
+              : generated.data
+          );
         }
         const savedMsg = path
           ? `Saved to ${path}`

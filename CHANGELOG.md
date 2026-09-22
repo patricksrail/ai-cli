@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Leave hosted search off by default; retain explicit opt-in and add Gemini 2.5 Flash-Lite as the search test model.
+- Align AI SDK/provider adapters with upstream CLI 0.5.2; preserve standalone Cloudflare routing. Upstream adds typed evaluation, model discovery, SVG handling, and stdin/cancellation fixes; evaluation requires explicit Vercel selection.
+
 - **Standalone CLI restored** - Removed the unapproved bricks dependency and restored local preferences/authentication; kept aliases, preferred listings, fallbacks and attempt reporting
 - **Readable recovery flow** - Commands pass routing options explicitly; `generation.ts` chooses routes, `fallback.ts` handles attempts, and `alternatives.ts` only suggests catalog matches. Added purpose comments, section headers and an ownership walkthrough
 - **Vercel retry correction** - Preserve upstream SDK retries in Vercel mode; only Cloudflare uses the CLI fallback loop, with an end-to-end regression test
@@ -16,7 +19,7 @@
 
 ### New Features
 
-- **Hosted web search** - Enable provider-native search for text and documented image models; add `--no-web-search`, keep `--free` free of separate search charges, and preserve citations in text/JSON. Live text checks pass; Nano Banana 2 image search checks failed on Fal and Replicate (2026-09-21).
+- **Hosted web search** - Support opt-in provider-native search for text and documented image models; add `--no-web-search`, keep `--free` free of separate search charges, and preserve citations in text/JSON. Live text checks pass; Nano Banana 2 image search checks failed on Fal and Replicate (2026-09-21).
 
 - **Central provider registry** - Routing capabilities and `ai providers --all` share provider auth, billing nuances and official sources
 - **Workers AI evaluated, left off** - Verified Flux generation and daily usage, then disabled CLI integration by request because the daily free allowance is only $0.11 in usage value. Fixed and renamed the shared CLI token; retained the authorized Workers AI-only $20 rolling-month gateway cap
@@ -59,9 +62,48 @@
 - **Provider error details** - Structured `detail`, validation, and nested provider errors are shown instead of blank error messages
 - **Bundled video downloads** - The CLI declares the safe downloader's `undici` runtime dependency so provider-hosted MP4 downloads work from the built executable
 
-## 0.4.4
+## 0.5.2
 
 <!-- release:start -->
+
+### Bug Fixes
+
+- **Quiver Arrow SVG output** - `ai image` now extracts SVG markup returned by Arrow 2 and Arrow 2 Telos, saves SVG output from all Arrow image models with the `.svg` extension, and displays larger SVG previews on a white background
+
+### Contributors
+
+- @ctate
+
+<!-- release:end -->
+
+## 0.5.1
+
+### New Features
+
+- **AI SDK evaluation** - `ai evaluate` exposes AI SDK’s evaluation API with typed shell flags or a full JSON question map. Boolean, Choice, and Score questions share intact text or JSON state. Output preserves the SDK result, including probabilities, usage, provider metadata, and response information. Jev is the default evaluation model.
+- **Evaluation model discovery** - `ai models --type evaluation` lists evaluation models; `AI_CLI_EVALUATION_MODEL` configures the evaluate default
+
+### Contributors
+
+- @ctate
+
+## 0.5.0
+
+### New Features
+
+- **Semantic record commands** - `ai filter`, `ai rank`, and `ai pick` evaluate lines, JSON arrays, and JSONL with Jev through AI Gateway, preserving selected records and exposing probabilities, scores, usage, and timing with `--json`
+- **Evaluation model discovery** - `ai models --type evaluation` lists evaluation models; `AI_CLI_EVALUATION_MODEL` configures the decision-command default
+
+### Bug Fixes
+
+- **Slow stdin pipelines** - commands wait for upstream output through EOF instead of discarding input if the first byte arrives after one second
+- **Fail-fast record evaluation** - decision commands stop pending batches and cancel in-flight evaluation requests after the first batch failure
+
+### Contributors
+
+- @ctate
+
+## 0.4.4
 
 ### New Features
 
@@ -75,8 +117,6 @@
 
 - @Railly
 - @ctate
-
-<!-- release:end -->
 
 ## 0.4.3
 

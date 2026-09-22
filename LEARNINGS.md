@@ -121,3 +121,11 @@ Environment: Node/Bun, AI SDK 7.0.84, Google 4.0.57, OpenAI 4.0.51 and OpenRoute
 OpenRouter now documents the hosted `openrouter:web_search` server tool rather than the deprecated web plugin. This installed SDK serializes tool arguments at the top level, whereas the current native docs put them under `parameters`; omit optional arguments for the documented auto default. See [OpenRouter](https://openrouter.ai/docs/guides/features/server-tools/web-search) and the [validation report](research/web-search-validation-2026-09-21.md).
 
 Fal/Replicate Nano Banana 2 accepted their documented search flags but did not generate either news image tested. Matched sailboat controls succeeded with search on and off. Do not infer that search universally breaks generation, or that accepting a flag proves successful grounding. Keep these observations separate from the passing text checks.
+
+## 2026-09-21: Google free text and search quotas differ
+
+On macOS through the same stored Cloudflare Google key, Gemini 3.8 returned 429 with Google Search enabled and 200 with search omitted. This matches [Google pricing](https://ai.google.dev/gemini-api/docs/pricing): free 3.8 text excludes search; 2.5 Flash/Lite share up to 500 grounded requests/day, subject to project limits. Do not diagnose every 429 as exhausted text quota. Exact project limits were not verified. Search now requires explicit opt-in; provider tests disable fallback so another provider cannot mask a failure.
+
+## 2026-09-21: SDK package alignment
+
+AI SDK 7.0.105 uses provider 4.0.17 and provider-utils 5.0.43. Match adapter patch versions to those dependencies: provider-utils exports schema symbols whose identity matters to TypeScript. A bricks install retained duplicate physical copies of provider-utils 5.0.43; a clean install from the lockfile fixed declaration generation. Do not hide mismatches with type casts.

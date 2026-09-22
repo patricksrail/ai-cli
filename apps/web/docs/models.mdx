@@ -15,6 +15,7 @@ Each command type has a default model used when `-m` is not specified:
 | video         | `replicate/prunaai/p-video`               | `AI_CLI_VIDEO_MODEL`         |
 | speech        | `fal/fal-ai/minimax/speech-02-turbo`      | `AI_CLI_SPEECH_MODEL`        |
 | transcription | `fal/fal-ai/wizper`                       | `AI_CLI_TRANSCRIPTION_MODEL` |
+| evaluation (Vercel only) | `typesafe-ai/jev` | `AI_CLI_EVALUATION_MODEL` |
 
 The `-m` flag always takes priority over environment variables.
 
@@ -75,7 +76,7 @@ Discovery follows the selected gateway. Cloudflare mode reads configured BYOK pr
 
 ## Multi-model comparison
 
-Generate with multiple models by comma-separating `-m`:
+Generation commands support multiple models by comma-separating `-m`:
 
 ```bash
 ai image "a sunset" -m "openai/gpt-image-1,xai/grok-imagine-image,bfl/flux-2-pro"
@@ -88,6 +89,8 @@ ai image "a sunset" -n 2 -m "openai/gpt-image-1,bfl/flux-2-pro"
 ```
 
 This produces 4 images total (2 per model), saved with generated filename stems and numeric suffixes, such as `resp_abc-1.<format>` through `resp_def-4.<format>`. The extension matches the format returned by each model when it is reported.
+
+`evaluate` accepts exactly one evaluation model per invocation and does not fall back to text generation models.
 
 ## Listing models
 
@@ -207,3 +210,7 @@ Default text recovery tries Google Gemini 3.8 Flash, then that model on OpenRout
 For media, only a confirmed HTTP 402/429 submission rejection permits another model. A failed poll, ambiguous timeout or server error does not prove that the original job was rejected, so it stops. Fallback models must accept the supplied media options. `--no-fallback` disables all saved route recovery.
 
 Progress and failures go to stderr. JSON reports `requested_model`, the successful `model` (null on failure), and ordered `attempts`; failures include the provider error and exit nonzero. Every attempt retains its full provider route. `ai providers <route>` finds catalog alternatives; those are suggestions, not verified inference. See the [project call matrix](https://github.com/patricksrail/bricks/blob/main/ai/MATRIX.md) and the evolving bricks recipes for curl, AI SDK, Python, structured output and streaming. Bricks is separate and may lag; this CLI is the reference for current behavior.
+
+## Evaluation models
+
+Use `ai models --gateway vercel --type evaluation` for upstream Jev discovery. Evaluation requires explicit Vercel routing and its own account credentials; generation remains on Cloudflare.

@@ -31,7 +31,14 @@ describe("cli integration", () => {
   test("--help exits 0 and lists subcommands", async () => {
     const { exitCode, stdout } = await run("--help");
     expect(exitCode).toBe(0);
-    for (const sub of ["text", "image", "video", "audio", "models"]) {
+    for (const sub of [
+      "text",
+      "image",
+      "video",
+      "audio",
+      "models",
+      "evaluate",
+    ]) {
       expect(stdout).toContain(sub);
     }
   });
@@ -274,6 +281,54 @@ describe("cli integration", () => {
     expect(exitCode).toBe(0);
     expect(stdout).toContain("[model]");
     expect(stdout).toContain("detailed info");
+    expect(stdout).toContain("evaluation");
+  });
+
+  test("evaluate documents its typed interface", async () => {
+    const { exitCode, stdout } = await run("evaluate", "--help");
+    expect(exitCode).toBe(0);
+    for (const flag of [
+      "--boolean",
+      "--choice",
+      "--choices",
+      "--score",
+      "--levels",
+      "--questions",
+      "--input",
+      "--provider-options",
+      "--max-retries",
+    ]) {
+      expect(stdout).toContain(flag);
+    }
+    expect(stdout).toContain("typesafe-ai/jev");
+    expect(stdout).not.toContain("--count");
+  });
+
+  test.each(["filter", "rank", "pick", "judge"])(
+    "%s is not a command",
+    async (command) => {
+      const result = await run(command);
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain("unknown command");
+    }
+  );
+
+  test("evaluate requires explicit typed questions", async () => {
+    const result = await run("evaluate");
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("named question is required");
+  });
+
+  test("evaluate validates flags before requesting a model", async () => {
+    for (const args of [
+      ["--boolean", "missing-id"],
+      ["--choice", "team=Which team?"],
+      ["--choices", "team=billing,support"],
+      ["--input", "yaml"],
+      ["--max-retries", "-1"],
+    ]) {
+      expect((await run("evaluate", ...args)).exitCode).toBe(1);
+    }
   });
 
   test("models with unknown model exits 1", async () => {

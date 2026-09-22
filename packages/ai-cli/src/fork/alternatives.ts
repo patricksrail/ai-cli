@@ -1,7 +1,7 @@
 /** Catalog suggestions only: compare model identities and nearby names across
  * hosts. These functions never generate or retry; see generation.ts for that. */
 import { routeCloudflareModel } from "../lib/gateway.js";
-import type { Modality } from "../lib/models.js";
+import type { GenerationModality as Modality } from "../lib/models.js";
 import { fetchCloudflareCatalog, type CatalogEntry } from "./catalog.js";
 
 function distance(a: string, b: string): number {

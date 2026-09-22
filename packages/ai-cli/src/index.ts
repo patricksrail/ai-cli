@@ -2,6 +2,7 @@
 
 import pkg from "../package.json";
 import { registerAudioCommand } from "./commands/audio.js";
+import { registerEvaluateCommand } from "./commands/evaluate.js";
 import { registerImageCommand } from "./commands/image.js";
 import { registerModelsCommand } from "./commands/models.js";
 import { registerTextCommand } from "./commands/text.js";
@@ -15,7 +16,7 @@ const program = new Command();
 program
   .name("ai")
   .description(
-    "Generate text, images, video and audio.\n\nDefault gateway: cloudflare.\nUse --gateway <name> on a command to override; see ai gateways.\nDefault text model: google/gemini-3.8-flash (Google free-tier eligible).\nUse -m <full-id>, --best, --free or --cheapest to choose a model.\nSee ai providers and ai models; check setup with ai doctor."
+    "Generate text, images, video and audio; evaluate typed questions.\n\nDefault gateway: cloudflare.\nUse --gateway <name> on a command to override; see ai gateways.\nDefault text model: google/gemini-3.8-flash (Google free-tier eligible).\nUse -m <full-id>, --best, --free or --cheapest to choose a model.\nSee ai providers and ai models; check setup with ai doctor.\nEvaluation requires explicit --gateway vercel."
   )
   .version(pkg.version);
 
@@ -23,6 +24,7 @@ registerTextCommand(program);
 registerImageCommand(program);
 registerVideoCommand(program);
 registerAudioCommand(program);
+registerEvaluateCommand(program);
 registerModelsCommand(program);
 registerDiagnostics(program);
 
