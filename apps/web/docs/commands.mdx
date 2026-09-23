@@ -72,6 +72,7 @@ ai video "a spinning triangle"
 ai video "a cinematic landscape" --resolution 1920x1080
 ai video -m "fal-ai/minimax/h3-max" --duration 5 "a paper boat crosses a puddle"
 ai image "a dragon" | ai video "animate this"
+ai video -m "fal/fal-ai/wan/v2.2-5b/image-to-video" -i photo.jpg "animate this"
 ```
 
 For MiniMax H3 Max through Fal, the CLI selects text-to-video or image-to-video from the input and handles Fal queue polling automatically. An input image can be supplied with `-i` or stdin.
@@ -85,6 +86,8 @@ ai video --resume /path/to/job.json --timeout 1800 -o video.mp4
 ```
 
 Resume checks/downloads the same operation without another submission or model fallback. Keep these private files until the output is saved; they omit prompts, images and auth headers. The provider can keep working after a timeout or Ctrl-C. Fal's final result can be an error even when its queue status says `COMPLETED`. See [Fal's queue lifecycle](https://fal.ai/docs/documentation/model-apis/inference/queue) and [AI SDK video polling](https://ai-sdk.dev/docs/ai-sdk-core/video-generation).
+
+For Fal's [Wan 2.2 5B image-to-video model](https://fal.ai/models/fal-ai/wan/v2.2-5b/image-to-video/api), the CLI pads an input image to the nearest supported frame (16:9, 9:16 or 1:1) when `--aspect-ratio` is omitted. It repeats edge pixels so the whole original image stays visible, then sends the ratio explicitly. For example, a 1024×768 image becomes 1376×774 at 16:9. URL images are downloaded for this preparation. If you specify a supported ratio, the CLI leaves the image unchanged; Fal may center-crop it. An unsupported explicit ratio fails before submission. Other video models are unchanged.
 
 <Properties>
   <Property name="-m, --model" type="string">

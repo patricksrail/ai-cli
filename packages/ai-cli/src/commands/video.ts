@@ -30,6 +30,7 @@ import {
   recoverableVideoModel,
   videoResumeCommand,
 } from "../lib/video-jobs.js";
+import { prepareWan22Video } from "../lib/wan-video.js";
 
 const DEFAULT_CONCURRENCY = 2;
 const DEFAULT_TIMEOUT_MS = 300_000;
@@ -166,6 +167,20 @@ export function registerVideoCommand(program: Command) {
         jobs,
         async (modelId) => {
           const abort = AbortSignal.timeout(timeoutMs(opts.timeout));
+          // Resume has no source image: the saved operation already contains
+          // everything the provider needs for status checks and download.
+          const prepared = resumed
+            ? { prompt: "", aspectRatio: undefined, padding: undefined }
+            : await prepareWan22Video(
+                modelId,
+                videoPrompt,
+                generationOptions.aspectRatio,
+                abort
+              );
+          if (prepared.padding && !opts.quiet)
+            process.stderr.write(
+              `Padded Wan 2.2 image from ${prepared.padding.from} to ${prepared.padding.to}; output ratio ${prepared.aspectRatio}.\n`
+            );
           const recovery = await recoverableVideoModel(
             videoModel(modelId),
             modelId,
@@ -190,13 +205,14 @@ export function registerVideoCommand(program: Command) {
                 "x-title": "ai-cli",
               },
               model: recovery.model,
-              prompt: resumed ? "" : videoPrompt,
+              prompt: resumed ? "" : prepared.prompt,
               // --timeout is the single deadline; do not let the SDK silently
               // impose its separate ten-minute polling limit.
               poll: { timeoutMs: Infinity },
               abortSignal: abort,
               download: videoDownload(modelId),
               ...generationOptions,
+              aspectRatio: prepared.aspectRatio,
             });
             return {
               data: Buffer.from(result.video.uint8Array),

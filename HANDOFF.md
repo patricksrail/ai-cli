@@ -1,6 +1,6 @@
 ---
 date_created: 2026-08-30
-date_updated: 2026-09-22
+date_updated: 2026-09-23
 summary: Verified Cloudflare BYOK account state, provider tests, costs, limitations, and maintenance notes for the ai-cli fork.
 related:
   - CLAUDE.md
@@ -149,3 +149,11 @@ Recovered the original Wan operation `01a0c7cd-e23a-7953-afc7-3b24af895d72` from
 The CLI now persists SDK video operations, including Fal publisher jobs, and supports `ai video --resume <job-file>`. It keeps SDK polling/download behavior, removes the SDK's independent ten-minute polling cap, preserves Fal validation errors, and prevents route fallback after an accepted operation. State files live in `$XDG_STATE_HOME/ai-cli/video-jobs`, defaulting to `~/.local/state/ai-cli/video-jobs`, with private permissions. The original job was resumed with the rebuilt CLI and correctly reported HTTP 422. Validation: 398 CLI tests and 20 website tests passed; CLI/web builds and CLI typecheck passed; lint retains 25 existing warnings, no errors. Timeout/resume end-to-end coverage verifies one POST total across two CLI processes.
 
 Successful recovery was also verified without a new submission: resumed an older completed Fal Veo 3.1 operation `01a0bbff-3cee-7d10-ae1a-c5be755cb0b9`, downloaded its 5,725,814-byte MP4, and checked its frame plus 8-second duration, 1280x720 H.264 video and AAC audio. The original Wan job remains a confirmed terminal validation failure, not a successful video. The existing five-minute CLI default is unchanged pending Patrick’s choice; explicit longer waits now work without the separate SDK cap. No corrected paid job was submitted.
+
+## Wan image padding (2026-09-23)
+
+Fal's [Wan 2.2 5B image-to-video schema](https://fal.ai/models/fal-ai/wan/v2.2-5b/image-to-video/api) lists `auto` alongside 16:9, 9:16 and 1:1, yet the original 4:3 job's worker rejected the dimensions chosen by `auto`. The CLI now pads a reference image to the nearest supported frame when the caller omits `--aspect-ratio`, repeats edge pixels, and sends the chosen ratio explicitly. Patrick chose padding to preserve the whole image. A 1024×768 source becomes a centered 1376×774 PNG at 16:9. Explicit ratios leave the image unchanged and unsupported explicit values fail before any Fal POST. The policy is limited to this endpoint; other Fal video models publish different ratio sets.
+
+The original source image was visually checked after padding. A mocked CLI-to-SDK-to-Fal submission verified the padded image dimensions and explicit ratio, and the timeout/resume test still verified only one POST. This checks the outgoing request, not live Wan generation: no corrected paid video job was submitted.
+
+The package build marks Sharp external so its native binary resolves from the installed dependency. Bundling Sharp's JavaScript made the built CLI fail even for `ai --version`; the rebuilt installed command now serves as a packaging smoke check.

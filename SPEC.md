@@ -1,6 +1,6 @@
 ---
 date_created: 2026-09-06
-date_updated: 2026-09-22
+date_updated: 2026-09-23
 summary: Required behavior of the Cloudflare BYOK CLI fork and provider-aware model discovery.
 related:
   - HANDOFF.md
@@ -40,3 +40,5 @@ Cheapest image selection uses the saved Fal Sana route, with explicit `--size 51
 Provider identity, modality support, auth type, and billing nuances have one executable registry at `src/fork/providers.ts`, exposed by `ai providers --all`; architectural guidance lives in `docs/providers.md`. Workers AI is disabled by choice in the registry after evaluating the $0.11-equivalent daily allowance. Its tested FLUX.1 Schnell adapter is retained as reference; do not enable it automatically. It must refuse prepaid billing and verify either a free plan or the user-authorized Workers AI gateway cap ($20 over at least 30 days) before ordinary inference. Explicit `--free` must reject capped paid routes. Do not change account plans or promote the route into default/best-free preferences until an authorized live probe succeeds.
 
 Asynchronous video operations must be persisted before polling so timeouts and interruptions can resume the same job without resubmission. Preserve provider terminal errors, including Fal validation details; a completed queue status alone is not success. The explicit CLI timeout must not be shortened by an independent SDK polling cap. Recovery files omit prompts, input images and auth headers and use private filesystem permissions.
+
+For Fal Wan 2.2 5B image-to-video on Cloudflare, omitting an aspect ratio must pad the input image to the nearest supported 16:9, 9:16 or 1:1 frame and send that ratio explicitly. Preserve the whole source image, including orientation; prefer its landscape or portrait orientation on a distance tie. A caller's explicit supported ratio must leave the image unchanged, and an unsupported ratio must fail before submission. Do not apply Wan's ratio policy to other video models. See [Fal's input schema](https://fal.ai/models/fal-ai/wan/v2.2-5b/image-to-video/api).

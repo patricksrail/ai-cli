@@ -313,6 +313,7 @@ ai video -i input.png "animate this"
 cat input.png | ai video "animate this"
 ai video -m "fal-ai/minimax/h3-max" --duration 5 "a paper boat crosses a puddle"
 ai video -m "fal-ai/minimax/h3-max" -i input.png "slowly dolly toward the subject"
+ai video -m "fal/fal-ai/wan/v2.2-5b/image-to-video" -i input.png "animate this"
 ```
 
 The H3 Max provider model selects Fal's documented [text-to-video](https://fal.ai/models/minimax/h3-max/text-to-video/api) or image-to-video endpoint from the input and handles queue submission, polling, and result retrieval inside the CLI. The exact endpoint forms, such as `fal/minimax/h3-max/text-to-video`, remain valid. Resolution support is model-dependent; H3 Max accepts 480p or 768p output, selected with a matching height such as `854x480` or `1366x768`.
@@ -323,7 +324,9 @@ Video jobs that support the SDK start/status interface save a private recovery f
 ai video --resume /path/from/the/printed/command.json --timeout 1800 -o video.mp4
 ```
 
-Resume only polls/downloads that same job; it never starts a replacement or uses fallback models. It requires the original gateway and provider access, and does not need the original prompt/image. A client timeout or Ctrl-C stops waiting, without cancelling the provider job. The explicit timeout controls the whole wait; the SDK's separate ten-minute polling cap is disabled. Fal's `COMPLETED` status can also mean failure: the CLI retrieves the result and reports its validation error. For Wan image-to-video, supply an explicit supported `--aspect-ratio` when the endpoint rejects the image's automatic dimensions; the CLI does not silently crop or choose one. See [Fal queue lifecycle](https://fal.ai/docs/documentation/model-apis/inference/queue), [Wan input schema](https://fal.ai/models/fal-ai/wan/v2.2-5b/image-to-video/api), and [AI SDK video polling](https://ai-sdk.dev/docs/ai-sdk-core/video-generation).
+Resume only polls/downloads that same job; it never starts a replacement or uses fallback models. It requires the original gateway and provider access, and does not need the original prompt/image. A client timeout or Ctrl-C stops waiting, without cancelling the provider job. The explicit timeout controls the whole wait; the SDK's separate ten-minute polling cap is disabled. Fal's `COMPLETED` status can also mean failure: the CLI retrieves the result and reports its validation error. See [Fal queue lifecycle](https://fal.ai/docs/documentation/model-apis/inference/queue) and [AI SDK video polling](https://ai-sdk.dev/docs/ai-sdk-core/video-generation).
+
+For Fal's [Wan 2.2 5B image-to-video endpoint](https://fal.ai/models/fal-ai/wan/v2.2-5b/image-to-video/api), omitting `--aspect-ratio` makes the CLI choose the nearest supported frame (16:9, 9:16 or 1:1), pad the image by repeating its edge pixels, and send that ratio explicitly. The entire input stays visible; for example, a 1024×768 image becomes a centered 1376×774 image at 16:9. This avoids a confirmed Fal failure where `auto` selected unsupported output dimensions from a 4:3 input. For URL inputs, the CLI downloads the image to prepare it. An explicit supported `--aspect-ratio` leaves the image unchanged; Fal may center-crop it to that ratio, as its schema documents. An unsupported explicit ratio fails before job submission. This behavior applies only to this Wan endpoint on Cloudflare.
 
 ### text
 

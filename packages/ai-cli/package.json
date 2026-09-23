@@ -34,7 +34,7 @@
   "scripts": {
     "dev": "bun run src/index.ts",
     "clean": "bun -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
-    "build": "bun run clean && bun build src/index.ts --target=node --outdir=dist",
+    "build": "bun run clean && bun build src/index.ts --target=node --outdir=dist --external sharp",
     "typecheck": "tsc --noEmit",
     "format": "oxfmt --write src/",
     "format:check": "oxfmt --check src/",
